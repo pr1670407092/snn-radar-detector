@@ -1,0 +1,27 @@
+
+****** xsim v2025.2 (64-bit)
+  **** SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
+  **** IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+  **** SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+  **** Start of session at: Mon Nov 23 16:58:18 2026
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+
+source xsim.dir/tb_snn2d_top/xsim_script.tcl
+# xsim {tb_snn2d_top} -autoloadwcfg -runall
+Time resolution is 1 ps
+run -all
+CASE 0 PASS: dec=1 score0=-260346 score1=474832 enc=2263 counts=13738/16502/19905/7896/7615/12576
+CASE 1 PASS: dec=1 score0=-478381 score1=385084 enc=2173 counts=13438/17686/20122/8215/7581/12242
+CASE 2 PASS: dec=1 score0=-180288 score1=413737 enc=2192 counts=13262/17476/19923/8229/7629/11976
+CASE 3 PASS: dec=1 score0=93881 score1=313549 enc=2204 counts=13551/17228/19405/8007/7519/12464
+CASE 4 PASS: dec=0 score0=368468 score1=108761 enc=2197 counts=13138/16462/18867/7631/6977/12648
+CASE 5 PASS: dec=0 score0=832731 score1=156404 enc=2132 counts=12376/16120/18862/7715/6270/12415
+CASE 6 PASS: dec=0 score0=246996 score1=86041 enc=2196 counts=13849/17639/19828/8216/7591/12361
+CASE 7 PASS: dec=0 score0=336073 score1=133539 enc=2082 counts=12410/16792/18954/7538/6428/12788
+ALL 8 CASES PASS
+$finish called at time : 40068085 ns : File "G:/python-G/snn/sim/tb_snn2d_top.v" Line 160
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:14 . Memory (MB): peak = 220.797 ; gain = 0.000
+exit
+INFO: xsimkernel Simulation Memory Usage: 11320 KB (Peak: 11320 KB), Simulation CPU Usage: 13437 ms
+INFO: [Common 17-206] Exiting xsim at Mon Nov 23 16:58:33 2026...

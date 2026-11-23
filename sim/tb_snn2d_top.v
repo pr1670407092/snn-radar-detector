@@ -14,7 +14,7 @@ module tb_snn2d_top;
     wire [2:0] dbg_layer;
     wire [1:0] dbg_t;
     wire [3:0] dbg_state;
-    wire [16:0] dbg_count0, dbg_count1, dbg_count2, dbg_count3, dbg_count4, dbg_count5;
+    wire [17:0] dbg_count0, dbg_count1, dbg_count2, dbg_count3, dbg_count4, dbg_count5;
 
     reg [7:0] feat_img [0:1023];
     reg [63:0] exp_score0 [0:N_CASES-1];

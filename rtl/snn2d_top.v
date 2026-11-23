@@ -3,7 +3,7 @@
 //
 // 1024-byte TFG -> sigma-delta encoder -> six 2D conv/LIF/SEW layers -> global
 // max -> int8 FC 32->2.  The engine is shared by all layers (runtime config);
-// the membrane memory is 64 lanes x 24 bit wide at each group address.
+// the membrane memory is 128 lanes x 24 bit wide at each group address.
 module snn2d_top (
     input  wire        clk,
     input  wire        rst,
@@ -19,12 +19,12 @@ module snn2d_top (
     output wire [2:0]  dbg_layer,
     output wire [1:0]  dbg_t,
     output wire [3:0]  dbg_state,
-    output reg  [16:0] dbg_count0,
-    output reg  [16:0] dbg_count1,
-    output reg  [16:0] dbg_count2,
-    output reg  [16:0] dbg_count3,
-    output reg  [16:0] dbg_count4,
-    output reg  [16:0] dbg_count5
+    output reg  [17:0] dbg_count0,
+    output reg  [17:0] dbg_count1,
+    output reg  [17:0] dbg_count2,
+    output reg  [17:0] dbg_count3,
+    output reg  [17:0] dbg_count4,
+    output reg  [17:0] dbg_count5
 );
 
     // ---------------- memories ----------------
@@ -34,7 +34,7 @@ module snn2d_top (
     reg [255:0]  fc_w_mem [0:1];
     reg [47:0]   fc_b_mem [0:1];
     reg [31:0]   spk_mem [0:3103];
-    reg [1535:0] v_mem   [0:1151];
+    reg [3071:0] v_mem   [0:575];
 
     initial begin
         $readmemh("w2d.mem",  w_mem);
@@ -48,7 +48,7 @@ module snn2d_top (
     reg [3:0]  tstate;
     reg [1:0]  t;
     reg [2:0]  layer;
-    reg [10:0] v6_addr;
+    reg [9:0] v6_addr;
     reg        rd_mode;
 
     // ---------------- encoder ----------------
@@ -66,22 +66,23 @@ module snn2d_top (
     );
 
     // ---------------- 2D engine ----------------
-    wire [10:0] w_addr, v_raddr, v_waddr;
+    wire [10:0] w_addr;
+    wire [9:0]  v_raddr, v_waddr;
     wire [7:0]  b_addr;
     wire [11:0] spk_raddr, spk_waddr;
     wire        eng_spk_we, eng_v_we;
     wire [31:0] eng_spk_wdata;
-    wire [1535:0] eng_v_wdata;
+    wire [3071:0] eng_v_wdata;
     wire        eng_busy, eng_done;
-    wire [16:0] eng_spk_count;
+    wire [17:0] eng_spk_count;
     reg         eng_start;
 
     reg [255:0]  w_data;
     reg [23:0]   b_data;
     reg [31:0]   spk_rdata;
-    reg [1535:0] v_rdata;
+    reg [3071:0] v_rdata;
 
-    wire [10:0] v_raddr_m = rd_mode ? v6_addr : v_raddr;
+    wire [9:0] v_raddr_m = rd_mode ? v6_addr : v_raddr;
 
     always @(posedge clk) begin
         w_data   <= w_mem[w_addr];
@@ -94,7 +95,8 @@ module snn2d_top (
     reg [5:0]  cfg_cin, cfg_cout, cfg_hin, cfg_win, cfg_hout, cfg_wout;
     reg [1:0]  cfg_stride;
     reg        cfg_sew;
-    reg [10:0] cfg_wbase, cfg_vbase;
+    reg [10:0] cfg_wbase;
+    reg [9:0]  cfg_vbase;
     reg [7:0]  cfg_bbase;
     reg [11:0] cfg_spkin_base, cfg_spkout_base, cfg_sew_base;
 
@@ -102,7 +104,8 @@ module snn2d_top (
     reg [5:0]  cfg_cin_q, cfg_cout_q, cfg_hin_q, cfg_win_q, cfg_hout_q, cfg_wout_q;
     reg [1:0]  cfg_stride_q;
     reg        cfg_sew_q;
-    reg [10:0] cfg_wbase_q, cfg_vbase_q;
+    reg [10:0] cfg_wbase_q;
+    reg [9:0]  cfg_vbase_q;
     reg [7:0]  cfg_bbase_q;
     reg [11:0] cfg_spkin_base_q, cfg_spkout_base_q, cfg_sew_base_q;
     reg signed [23:0] cfg_th_q;
@@ -112,28 +115,28 @@ module snn2d_top (
         cfg_hin = 6'd32; cfg_win = 6'd32;
         cfg_hout = 6'd32; cfg_wout = 6'd32;
         cfg_stride = 2'd1; cfg_sew = 1'b0;
-        cfg_wbase = 11'd0; cfg_bbase = 8'd0; cfg_vbase = 11'd0;
+        cfg_wbase = 11'd0; cfg_bbase = 8'd0; cfg_vbase = 10'd0;
         cfg_spkin_base = 12'd0; cfg_spkout_base = 12'd32; cfg_sew_base = 12'd0;
         case (layer)
             3'd0: begin
                 cfg_cin = 6'd1; cfg_cout = 6'd16;
                 cfg_hin = 6'd32; cfg_win = 6'd32; cfg_hout = 6'd32; cfg_wout = 6'd32;
                 cfg_stride = 2'd1; cfg_sew = 1'b0;
-                cfg_wbase = 11'd0; cfg_bbase = 8'd0; cfg_vbase = 11'd0;
+                cfg_wbase = 11'd0; cfg_bbase = 8'd0; cfg_vbase = 10'd0;
                 cfg_spkin_base = 12'd0; cfg_spkout_base = 12'd32;
             end
             3'd1: begin
                 cfg_cin = 6'd16; cfg_cout = 6'd16;
                 cfg_hin = 6'd32; cfg_win = 6'd32; cfg_hout = 6'd32; cfg_wout = 6'd32;
                 cfg_stride = 2'd1; cfg_sew = 1'b0;
-                cfg_wbase = 11'd9; cfg_bbase = 8'd32; cfg_vbase = 11'd256;
+                cfg_wbase = 11'd9; cfg_bbase = 8'd32; cfg_vbase = 10'd128;
                 cfg_spkin_base = 12'd32; cfg_spkout_base = 12'd544;
             end
             3'd2: begin
                 cfg_cin = 6'd16; cfg_cout = 6'd16;
                 cfg_hin = 6'd32; cfg_win = 6'd32; cfg_hout = 6'd32; cfg_wout = 6'd32;
                 cfg_stride = 2'd1; cfg_sew = 1'b1;
-                cfg_wbase = 11'd153; cfg_bbase = 8'd64; cfg_vbase = 11'd512;
+                cfg_wbase = 11'd153; cfg_bbase = 8'd64; cfg_vbase = 10'd256;
                 cfg_spkin_base = 12'd544; cfg_spkout_base = 12'd1056;
                 cfg_sew_base = 12'd32;
             end
@@ -141,21 +144,21 @@ module snn2d_top (
                 cfg_cin = 6'd16; cfg_cout = 6'd32;
                 cfg_hin = 6'd32; cfg_win = 6'd32; cfg_hout = 6'd16; cfg_wout = 6'd16;
                 cfg_stride = 2'd2; cfg_sew = 1'b0;
-                cfg_wbase = 11'd297; cfg_bbase = 8'd96; cfg_vbase = 11'd768;
+                cfg_wbase = 11'd297; cfg_bbase = 8'd96; cfg_vbase = 10'd384;
                 cfg_spkin_base = 12'd1056; cfg_spkout_base = 12'd1568;
             end
             3'd4: begin
                 cfg_cin = 6'd32; cfg_cout = 6'd32;
                 cfg_hin = 6'd16; cfg_win = 6'd16; cfg_hout = 6'd16; cfg_wout = 6'd16;
                 cfg_stride = 2'd1; cfg_sew = 1'b0;
-                cfg_wbase = 11'd441; cfg_bbase = 8'd128; cfg_vbase = 11'd896;
+                cfg_wbase = 11'd441; cfg_bbase = 8'd128; cfg_vbase = 10'd448;
                 cfg_spkin_base = 12'd1568; cfg_spkout_base = 12'd2080;
             end
             3'd5: begin
                 cfg_cin = 6'd32; cfg_cout = 6'd32;
                 cfg_hin = 6'd16; cfg_win = 6'd16; cfg_hout = 6'd16; cfg_wout = 6'd16;
                 cfg_stride = 2'd1; cfg_sew = 1'b1;
-                cfg_wbase = 11'd729; cfg_bbase = 8'd160; cfg_vbase = 11'd1024;
+                cfg_wbase = 11'd729; cfg_bbase = 8'd160; cfg_vbase = 10'd512;
                 cfg_spkin_base = 12'd2080; cfg_spkout_base = 12'd2592;
                 cfg_sew_base = 12'd1568;
             end
@@ -193,10 +196,10 @@ module snn2d_top (
     end
 
     reg         clear_v_we;
-    reg [10:0]  clear_v_addr;
+    reg [9:0]   clear_v_addr;
     wire        v_we = clear_v_we | eng_v_we;
-    wire [10:0] v_waddr_m = clear_v_we ? clear_v_addr : v_waddr;
-    wire [1535:0] v_wdata_m = clear_v_we ? 1536'd0 : eng_v_wdata;
+    wire [9:0] v_waddr_m = clear_v_we ? clear_v_addr : v_waddr;
+    wire [3071:0] v_wdata_m = clear_v_we ? 3072'd0 : eng_v_wdata;
     always @(posedge clk) begin
         if (v_we)
             v_mem[v_waddr_m] <= v_wdata_m;
@@ -220,8 +223,8 @@ module snn2d_top (
                T_CLEAR_ENC_WAIT = 4'd14,
                T_FC_ADD    = 4'd15;
 
-    reg [10:0] clear_cnt;
-    reg [6:0]  rd_idx;
+    reg [9:0]  clear_cnt;
+    reg [5:0]  rd_idx;
     reg [4:0]  fc_k;
     reg signed [23:0] maxv [0:31];
     reg signed [47:0] acc0, acc1;
@@ -245,16 +248,16 @@ module snn2d_top (
             enc_start <= 1'b0;
             eng_start <= 1'b0;
             clear_v_we <= 1'b0;
-            clear_v_addr <= 11'd0;
-            clear_cnt <= 11'd0;
+            clear_v_addr <= 10'd0;
+            clear_cnt <= 10'd0;
             t <= 2'd0;
             layer <= 3'd0;
-            rd_idx <= 7'd0;
+            rd_idx <= 6'd0;
             fc_k <= 5'd0;
-            v6_addr <= 11'd0;
+            v6_addr <= 10'd0;
             rd_mode <= 1'b0;
-            dbg_count0 <= 17'd0; dbg_count1 <= 17'd0; dbg_count2 <= 17'd0;
-            dbg_count3 <= 17'd0; dbg_count4 <= 17'd0; dbg_count5 <= 17'd0;
+            dbg_count0 <= 18'd0; dbg_count1 <= 18'd0; dbg_count2 <= 18'd0;
+            dbg_count3 <= 18'd0; dbg_count4 <= 18'd0; dbg_count5 <= 18'd0;
         end else begin
             enc_start <= 1'b0;
             eng_start <= 1'b0;
@@ -265,14 +268,14 @@ module snn2d_top (
                     if (start) begin
                         busy <= 1'b1;
                         done <= 1'b0;
-                        clear_cnt <= 11'd0;
-                        clear_v_addr <= 11'd0;
+                        clear_cnt <= 10'd0;
+                        clear_v_addr <= 10'd0;
                         clear_v_we <= 1'b1;
                         t <= 2'd0;
                         layer <= 3'd0;
                         rd_mode <= 1'b0;
-                        dbg_count0 <= 17'd0; dbg_count1 <= 17'd0; dbg_count2 <= 17'd0;
-                        dbg_count3 <= 17'd0; dbg_count4 <= 17'd0; dbg_count5 <= 17'd0;
+                        dbg_count0 <= 18'd0; dbg_count1 <= 18'd0; dbg_count2 <= 18'd0;
+                        dbg_count3 <= 18'd0; dbg_count4 <= 18'd0; dbg_count5 <= 18'd0;
                         tstate <= T_CLEAR_V;
                     end
                 end
@@ -280,11 +283,11 @@ module snn2d_top (
                 T_CLEAR_V: begin
                     clear_v_we <= 1'b1;
                     clear_v_addr <= clear_cnt;
-                    if (clear_cnt == 11'd1151) begin
+                    if (clear_cnt == 10'd575) begin
                         clear_v_we <= 1'b0;
                         tstate <= T_CLEAR_ENC;
                     end else begin
-                        clear_cnt <= clear_cnt + 11'd1;
+                        clear_cnt <= clear_cnt + 10'd1;
                     end
                 end
 
@@ -339,7 +342,7 @@ module snn2d_top (
                             for (l = 0; l < 32; l = l + 1)
                                 maxv[l] <= -24'sd8388607;
                             rd_mode <= 1'b1;
-                            rd_idx <= 7'd0;
+                            rd_idx <= 6'd0;
                             tstate <= T_RD_SET;
                         end else begin
                             t <= t + 2'd1;
@@ -353,25 +356,25 @@ module snn2d_top (
                 end
 
                 T_RD_SET: begin
-                    v6_addr <= 11'd1024 + rd_idx;
+                    v6_addr <= 10'd512 + rd_idx;
                     tstate <= T_RD_WAIT;
                 end
                 T_RD_WAIT: begin
                     tstate <= T_RD_GET;
                 end
                 T_RD_GET: begin
-                    for (l = 0; l < 64; l = l + 1) begin
+                    for (l = 0; l < 128; l = l + 1) begin
                         co = l & 31;
                         if ($signed(v_rdata[24*l +: 24]) > maxv[co])
                             maxv[co] <= $signed(v_rdata[24*l +: 24]);
                     end
-                    if (rd_idx == 7'd127) begin
+                    if (rd_idx == 6'd63) begin
                         acc0 <= 48'sd0;
                         acc1 <= 48'sd0;
                         fc_k <= 5'd0;
                         tstate <= T_FC;
                     end else begin
-                        rd_idx <= rd_idx + 7'd1;
+                        rd_idx <= rd_idx + 6'd1;
                         tstate <= T_RD_SET;
                     end
                 end
