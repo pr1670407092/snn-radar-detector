@@ -18,6 +18,7 @@
 - 混合方案：MF + 1D CNN + 32-32-2 SNN 头 97.94%（SNN 只有 2,112 突触，不算 SNN 主力，见 1.3）。
 - **独立调研报告（9 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
 - **技术报告（16 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
+- **论文（IEEE Trans 中文格式，5 页）**：[docs/paper.html](docs/paper.html) / [docs/paper.pdf](docs/paper.pdf)（TFG-RSN + 7020 加速器，含 18 篇参考文献）。
 - **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
 
 > 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
