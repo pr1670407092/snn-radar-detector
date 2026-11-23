@@ -1,0 +1,11 @@
+integer SNN T=4: acc=99.62% PD=99.70% PFA=0.45% AUC=0.9997
+confusion 4020 18 12 3950
+score range -762426 995363
+spike counts range 5110 20834
+  L1: Cin=1 Cout=16 stride=1 sew=-1 S=0.012021 th=83 bias=[-236,239]
+  L2: Cin=16 Cout=16 stride=1 sew=-1 S=0.005750 th=174 bias=[-134,86]
+  L3: Cin=16 Cout=16 stride=1 sew=0 S=0.004027 th=248 bias=[-260,184]
+  L4: Cin=16 Cout=32 stride=2 sew=-1 S=0.003891 th=257 bias=[-435,243]
+  L5: Cin=32 Cout=32 stride=1 sew=-1 S=0.003931 th=254 bias=[-438,303]
+  L6: Cin=32 Cout=32 stride=1 sew=3 S=0.003544 th=282 bias=[-368,511]
+saved weights2d and hw2d

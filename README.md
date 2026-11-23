@@ -15,7 +15,7 @@
 > 状态：已完成数据合成、ANN 训练、ANN→SNN 量化转换、RTL、Vivado xsim 仿真、
 > Vivado 综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
 >
-> 面向老师汇报的技术报告：[docs/report.html](docs/report.html)（浏览器打开，右上角可打印/导出 PDF）；已导出的 A4 PDF 版：[docs/report.pdf](docs/report.pdf)（14 页）。
+> 面向老师汇报的技术报告：[docs/report.html](docs/report.html)（浏览器打开，右上角可打印/导出 PDF）；已导出的 A4 PDF 版：[docs/report.pdf](docs/report.pdf)（15 页）。
 
 ---
 
@@ -172,7 +172,7 @@
 本地现实：纯 spiking CNN 的 direct BPTT 85.5%（1D）、naive rate 转换 85.0%、QCFS 原型 51%；
 在时频 RSN 之前，最佳纯 SNN 是 8-bit 256-128（96.64%，1.77 ms），最佳精度是混合方案
 （97.94%，SNN 头 2,112 突触）。**1.5 的 2D 时频 RSN 已经把纯 SNN 提到 99.72%**，
-2D 卷积引擎是下一步 RTL。
+2D 卷积引擎 RTL 已完成功能仿真（见 1.6）。
 
 ## 1.5 时频图 + 2D 残差 spiking CNN（time-frequency RSN，最新）
 
@@ -195,7 +195,7 @@
 - 算力：每时间步 10.76M MAC，T=4 共 43.06M；实测各层输入脉冲率
   53.7% / 20.0% / 24.7% / 29.3% / 22.9% / 20.8%，事件驱动有效 MAC 约 10.05M。
   64 lane/100 MHz dense 6.73 ms、事件驱动约 1.57 ms；128 lane dense 3.36 ms、
-  事件驱动约 0.79 ms（估算，2D 卷积引擎未 RTL）。
+  事件驱动约 0.79 ms（2D 引擎已 RTL，见 1.6；事件驱动未实现）。
 - 存储：膜电位 73,728×24 bit ≈ 48 BRAM，权重约 7 BRAM，加行缓冲约 60/140 BRAM；
   LUT 估算 28k（64 lane）/46k（128 lane）。
 - 注意：STFT 是非 spiking 预处理；分类所需的 6 层卷积/残差/读出全部 spiking，
@@ -203,6 +203,34 @@
 - 文件：`python/tf_data.py`、`train_cnn2d.py`、`train_spiking_cnn2d.py`、
   `eval_spiking_cnn2d.py`、`models/cnn2d_tf.pt`、`models/spiking_cnn2d_tf.pt`、
   `data/radar_tf.npz`、`docs/metrics_spiking_cnn2d.json`。
+
+## 1.6 2D 卷积引擎 RTL（64 lane / 100 MHz，功能仿真 8/8）
+
+已把 1.5 的 2D SNN 写成可综合 RTL：
+
+- `rtl/conv2d_engine.v`：64 lane 2D conv + LIF + SEW；3×3 三行 line buffer；
+  运行时层配置（Cin 1/16/32、Cout 16/32、stride 1/2、SEW）；int8 权重、24-bit 膜电位；
+  一个 tap/cycle；bias/residual/threshold 全部 signed。
+- `rtl/rate_encoder2d.v`：1024 通道 sigma-delta，1 pixel/cycle，T=4，acc 跨 t 保持。
+- `rtl/snn2d_top.v`：6 层调度、全局 max、int8 FC 32→2；v_mem 1152×1536（64 lane×24 bit），
+  spk_mem 3104×32，编码器/层/FC FSM。
+- `sim/tb_snn2d_top.v`：8 个测试向量（4 正/4 负），对比 decision、FC 分数和每层脉冲计数。
+
+功能仿真结果：**8/8 decision PASS**；FC 分数与整数参考差 <3%；每层计数差 <1%
+（L6 约 0.8%）。L1 t0 的输出图和膜电位 **0 bit 差**；跨 t 的 row-buffer 仍有
+5 个字/43 bit 的边角差异，尚未 bit-exact，这是下一步收尾项。
+
+- 延迟：8 例仿真共 71.34 ms → 约 **8.9 ms/次 @100 MHz**（含特征写入、4 次编码、
+  6 层 dense MAC、读出/FC）；dense MAC 理论 6.73 ms，事件驱动 1.57 ms 尚未实现。
+- 资源（Vivado 2025.2，xc7z020clg400-2，OOC，50 MHz 实现）：**LUT 16,116/53,200（30.3%）**、
+  **FF 8,981/106,400（8.4%）**、**BRAM 98/140（70%）**、**DSP 2/220**；功耗 **0.392 W**
+  （动态 0.280 + 静态 0.113）。
+- 时序：100 MHz 综合 **WNS −3.268 ns**（17 个失败端点），关键路径
+  `layer` 配置 → 64-lane LIF/脉冲计数；**50 MHz 综合 +6.732 ns，实现 WNS +0.293 ns、
+  WHS +0.123 ns、0 失败端点**，50 MHz 版本时序收敛；100 MHz 需要 LIF/计数两级流水。
+  实现结果见 `build/synth2d50/timing2d50_impl.rpt`。
+- 复现：`python/convert_snn2d.py` → 生成 `weights2d/`、`hw2d/`；`build/sim2d` 下 xvlog/xelab/xsim；
+  `tcl/synth2d.tcl` / `tcl/impl2d.tcl`；仿真日志 `docs/sim2d_8.log`（8/8 PASS）。
 
 ---
 
@@ -512,21 +540,28 @@ vivado -mode batch -nolog -nojournal -source ../../tcl/impl4.tcl
 rtl/        snn_top.v / lif_layer.v / rate_encoder.v / weight_mem.v（8-bit 基线）
              snn_top_eff.v（8-bit 256-128 效率版）
              snn_top4.v / lif_layer4.v（4-bit / 64-lane 容量实验）
-sim/        tb_snn_top.v / tb_snn_top_eff.v / tb_snn_top4.v
+             conv2d_engine.v / rate_encoder2d.v / snn2d_top.v（2D 时频 RSN）
+sim/        tb_snn_top.v / tb_snn_top_eff.v / tb_snn_top4.v / tb_snn2d_top.v
 python/     radar_data.py / train_ann.py / convert_snn.py / eval_snn.py / export_hw.py
 weights/    8-bit 基线权重、偏置、硬件测试向量、meta.json
 weights_eff/ 8-bit 效率版权重、偏置、硬件测试向量、meta.json
 weights4/   4-bit 容量版权重、偏置、硬件测试向量、meta.json
+weights2d/  2D RTL 权重/偏置/阈值/FC/meta2d.json
+hw2d/       2D RTL 8 个测试向量 + 期望分数/计数
 tcl/        synth.tcl / impl.tcl / synth_eff.tcl / impl_eff.tcl / synth4.tcl / impl4.tcl
+            synth2d.tcl / impl2d.tcl / synth2d50.tcl / impl2d50.tcl
 build/sim/  8-bit 基线 xsim
 build/sim_eff/ 8-bit 效率版 xsim
 build/sim4/ 4-bit 容量版 xsim
+build/sim2d/ 2D RTL xsim
 build/synth/  8-bit 基线综合/实现
 build/synth_eff/ 8-bit 效率版综合/实现
 build/synth4/ 4-bit 容量版综合/实现
+build/synth2d/ 2D RTL 100MHz 综合
+build/synth2d50/ 2D RTL 50MHz 综合/实现
 docs/       metrics.json / metrics_eff.json / metrics4.json /
             metrics_cnn_mf.json / metrics_hybrid_snn.json / metrics_spiking_cnn2d.json /
-            report.html / report.pdf
+            sim2d_8.log / report.html / report.pdf
 models/     ann512_B.pt（基线）/ ann_256_128.pt（效率版）/ ann704_c.pt（4-bit）
             cnn_mf_max_r0.pt（MF+CNN）/ ann_hybrid.pt（CNN 特征 + SNN 头）
             cnn2d_tf.pt（2D 时频 ANN）/ spiking_cnn2d_tf.pt（2D 时频 SNN）
