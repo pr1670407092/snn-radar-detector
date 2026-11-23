@@ -286,6 +286,7 @@
     <h3>4.3 2D 时频 RSN：算法与 RTL</h3>
     <p>算法：STFT 32×32 TFG（64 点 STFT，hop 16）→ 6 层 2D 残差 spiking CNN（SEW-ADD，BN，LIF，膜电位读出，direct BPTT），T=4，28,146 参数。float 99.72%，int8 99.62%。</p>
     <p>RTL：一个 128-lane 通用 2D 卷积引擎，按层加载配置（Cin 1/16/32、Cout 16/32、stride 1/2、SEW 源、权重/偏置/膜电位基址）；3×3 三行 line buffer；一个 tap/cycle；int8 权重、24-bit 膜电位；全局 max + int8 FC 32→2。128 lane = 8 pixel×16 ch 或 4 pixel×32 ch，4 组/行。100 MHz 实现：WNS +0.259 ns、0 失败端点、0.661 W、5.01 ms/次。</p>
+    <p>资源均衡版把权重改成 192 字 FF 缓存 + 96 字 LUTRAM 尾段：LUT 29,048（54.6%）、FF 64,633（60.8%）、BRAM 98（70%）、0.992 W、5.82 ms/次。7020 上 BRAM 70% 后只剩约 8,204 slice，LUT/FF 上限约 61.7%，所以“三项都 65%”不可实现；16-bit 膜电位试过约 52/59/50，最低项更低。</p>
     <div class="table-wrap">
       <table>
         <colgroup><col style="width:22%"><col style="width:14%"><col style="width:18%"><col style="width:18%"><col style="width:28%"></colgroup>
@@ -386,7 +387,7 @@
       <li>FMCW radar Fourier SNN, DOI: 10.3389/fnbot.2021.688344. <span class="tag warn">仅题名/DOI 级参考</span></li>
       <li>Spiking resonators, DOI: 10.1088/2634-4386/adcf46. <span class="tag warn">仅题名/DOI 级参考</span></li>
       <li>PYNQ-Z2 QCSNN, DOI: 10.3390/s26123723. <span class="tag warn">仅题名/DOI 级参考</span></li>
-      <li>本项目技术报告（15 页）：<code>docs/report.html</code> / <code>docs/report.pdf</code>；源码与权重：<code>G:\python-G\snn</code>；GitHub: <code>https://github.com/pr1670407092/snn-radar-detector</code>。</li>
+      <li>本项目技术报告（16 页）：<code>docs/report.html</code> / <code>docs/report.pdf</code>；源码与权重：<code>G:\python-G\snn</code>；GitHub: <code>https://github.com/pr1670407092/snn-radar-detector</code>。</li>
       <li>本项目 1D 三版 RTL、4-bit 容量实验、MF+CNN+SNN 混合实验的数据与日志：<code>docs/metrics*.json</code>、<code>build/sim*/</code>、<code>weights*/</code>。</li>
     </ol>
     <div class="callout warn"><strong>引用说明：</strong>IEEE 的 4 篇雷达论文全文未开放，本报告只使用题名/作者/DOI/摘要；GRSL 2026 TF-Spkformer 摘要为空，只按题名做主题判断。EMRFormer 使用 arXiv 全文。高效 SNN 模型使用 arXiv/会议页的题名与摘要，未逐篇复现；表中的“7020 适配”是我们的工程判断，不是论文结论。</div>
@@ -403,7 +404,7 @@
     <ul class="small">
       <li><code>papers/grsl2025_rsn.json</code>、<code>radarconf2024_hrrp.json</code>、<code>ijcnn2026_stt.json</code>、<code>grsl2026_tfspkformer.json</code>：Semantic Scholar 元数据/摘要。</li>
       <li><code>papers/emrformer.pdf</code> / <code>emrformer.txt</code>：arXiv 全文。</li>
-      <li><code>docs/report.html</code> / <code>docs/report.pdf</code>：15 页技术报告（含 9.10 的 100 MHz RTL）。</li>
+      <li><code>docs/report.html</code> / <code>docs/report.pdf</code>：16 页技术报告（含 9.10 的 100 MHz RTL）。</li>
       <li><code>docs/metrics_spiking_cnn2d.json</code>、<code>docs/sim2d_8.log</code>：2D 算法/RTL 指标与 8/8 日志。</li>
       <li><code>weights2d/</code>、<code>hw2d/</code>、<code>rtl/conv2d_engine.v</code>、<code>rtl/snn2d_top.v</code>：2D RTL 权重/测试向量/源码。</li>
     </ul>

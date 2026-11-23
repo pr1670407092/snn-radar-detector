@@ -894,6 +894,7 @@
         继续加 lane 会被 BRAM 宽度/容量挡住，LUT 不是唯一瓶颈。
       </div>
       <p><strong>延迟与能耗：</strong>8 例仿真共 <strong>40.07 ms</strong>，平均 <strong>5.01 ms/次 @100 MHz</strong>（含特征写入、4 次编码、6 层 dense MAC、读出/FC）；64-lane 为 9.01 ms，实测 <strong>1.80×</strong>。dense MAC 理论 3.36 ms，固定开销约 1.65 ms；事件驱动 0.79 ms 仍是按平均脉冲率的估算，尚未实现。功耗 0.661 W × 5.01 ms ≈ <strong>3.31 mJ/次</strong>，比 64-lane 的 5.26 mJ 低 37%。2D RSN 是“精度优先”的版本；1D 8-bit 256-128 仍是低延迟版本（1.77 ms）。</p>
+      <p><strong>资源均衡版（main）：</strong>把权重改成 192 字×256-bit FF 缓存（L5/L6 剩余 96 字在 LUTRAM 尾段），仍是 1 tap/cycle、128 lane。100 MHz 实现：LUT <strong>29,048（54.6%）</strong>、FF <strong>64,633（60.8%）</strong>、BRAM <strong>98（70%）</strong>、<strong>0.992 W</strong>、WNS <strong>+0.173 ns</strong>；8/8 决策，<strong>5.82 ms/次</strong>。7020 上 BRAM 70% 后只剩约 8,204 个 slice，LUT/FF 上限约 61.7%，所以三项同时 65% 不可能；16-bit 膜电位试过约 52/59/50，最低项反而更低。</p>
       <p class="small muted">文件：<code>rtl/conv2d_engine.v</code>、<code>rtl/rate_encoder2d.v</code>、<code>rtl/snn2d_top.v</code>、<code>sim/tb_snn2d_top.v</code>、<code>tcl/synth2d.tcl</code>、<code>tcl/impl2d.tcl</code>、<code>weights2d/</code>、<code>hw2d/</code>、<code>build/synth2d/</code>、<code>docs/sim2d_128.log</code>。复现：<code>python python/convert_snn2d.py</code> → 在 <code>build/sim2d</code> 跑 xvlog/xelab/xsim → 在 <code>build/synth2d</code> 跑 Vivado 100 MHz。</p>
 
       <div class="callout">
@@ -1022,7 +1023,7 @@ vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d.tcl</pre>
           <div class="tip"><b>4. 硬件</b><br>8-bit 基线 512-512-512（128/140 BRAM，5.59 ms）；8-bit 效率版 512-256-128（36.5/140 BRAM，1.77 ms，96.64%）；4-bit 大网络是容量实验。</div>
           <div class="tip"><b>5. 验证</b><br>1D 三版 RTL 与 Python 整数模型逐计数一致（8/8，count0/count1/decision 全等）；2D RTL 8/8 决策正确，但逐计数/分数尚未全用例 bit-exact，跨 t 行缓冲是收尾项。</div>
           <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 引擎 RTL 已完成 8/8 决策、100 MHz 128-lane 实现（WNS +0.259 ns、5.01 ms），跨 t 行缓冲尚未 bit-exact；下一步上板 + 真实数据 + 事件驱动。</div>
-          <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking；128-lane RTL 已实现，8/8 决策，100 MHz 实现 WNS +0.259 ns、LUT 27,948、0.661 W、5.01 ms。</div>
+          <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking。性能版 128-lane：LUT 27,948、FF 15,393、BRAM 98、0.661 W、5.01 ms；均衡版（main）：LUT 29,048（54.6%）、FF 64,633（60.8%）、BRAM 98（70%）、0.992 W、5.82 ms，均 8/8 决策。</div>
         </div>
       </details>
     </section>

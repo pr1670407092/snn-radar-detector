@@ -9,14 +9,15 @@
 | 方向 | 结果 |
 |---|---|
 | **算法最佳：时频 RSN** | STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，6 层卷积全 spiking；float **99.72%** / int8 **99.62%**，PD 99.67% / PFA 0.22%，AUC **0.9998**；PFA 1e-3 → PD 99.47% / PFA 0.05% |
-| **2D RTL（最新）** | 128-lane / **100 MHz**；**8/8 决策**；WNS **+0.259 ns**、WHS +0.122、0 失败；LUT **27,948（52.5%）**、FF **15,393（14.5%）**、BRAM **98/140（70%）**、DSP 2、**0.661 W**；**5.01 ms/次**（64-lane 9.01 ms，**1.80×**；能量/次 5.26→3.31 mJ） |
+| **2D RTL（性能版）** | 128-lane / **100 MHz**；**8/8 决策**；WNS **+0.259 ns**、WHS +0.122、0 失败；LUT **27,948（52.5%）**、FF **15,393（14.5%）**、BRAM **98/140（70%）**、DSP 2、**0.661 W**；**5.01 ms/次** |
+| **2D RTL（均衡版，最新）** | 1 tap + **192 字 FF 权重缓存**；LUT **29,048（54.6%）**、FF **64,633（60.8%）**、BRAM **98（70%）**、**0.992 W**；WNS **+0.173 ns**；**5.82 ms/次**；8/8 决策 |
 | **低延迟：1D 8-bit** | 512→256→128→2，164,096 突触，**96.64%**，PD 94.67% / PFA 1.44%，**1.77 ms**，BRAM 36.5/140；RTL 与 Python **bit-exact 8/8** |
 | **容量实验：4-bit** | 512→704→704→2，857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140；仅容量实验 |
 
 - 1D 三版 RTL（512-512-512 / 512-256-128 / 512-704-704）均与 Python 整数模型逐计数一致；2D RTL **8/8 决策正确**，但逐计数/FC 分数尚未全用例 bit-exact：case0 的 L1 精确、L2–L5 差 <0.2%、L6 约 1.6%，其余随机例因跨 t 行缓冲边角出现 1–14% 计数漂移；决策不受影响，bit-exact 是收尾项。
 - 混合方案：MF + 1D CNN + 32-32-2 SNN 头 97.94%（SNN 只有 2,112 突触，不算 SNN 主力，见 1.3）。
 - **独立调研报告（9 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
-- **技术报告（15 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
+- **技术报告（16 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
 - **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
 
 > 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
@@ -208,7 +209,7 @@
   `eval_spiking_cnn2d.py`、`models/cnn2d_tf.pt`、`models/spiking_cnn2d_tf.pt`、
   `data/radar_tf.npz`、`docs/metrics_spiking_cnn2d.json`。
 
-## 1.6 2D 卷积引擎 RTL（128 lane / 100 MHz，功能仿真 8/8）
+## 1.6 2D 卷积引擎 RTL（性能版 / 均衡版，100 MHz，8/8）
 
 已把 1.5 的 2D SNN 写成可综合 RTL：
 
@@ -250,6 +251,26 @@ L2–L5 计数差 <0.2%、L6 约 1.6%，FC 分数差约 1.5%。其余随机例�
   加 sg 预取后收敛到 +0.259。实现结果见 `build/synth2d/timing2d_impl.rpt`。
 - 复现：`python/convert_snn2d.py` → 生成 `weights2d/`、`hw2d/`；`build/sim2d` 下 xvlog/xelab/xsim；
   `tcl/synth2d.tcl` / `tcl/impl2d.tcl`；仿真日志 `docs/sim2d_128.log`（8/8 PASS）。
+
+### 均衡资源版（当前 main）
+
+在性能版基础上把权重从 BRAM 读改成 **192 字×256-bit 的 FF 权重缓存**（L5/L6 剩余 96 字放
+LUTRAM 尾段），仍是 1 tap/cycle、128 lane：
+
+| 指标 | 性能版 | **均衡版（main）** |
+|---|---:|---:|
+| LUT | 27,948（52.5%） | **29,048（54.6%）** |
+| FF | 15,393（14.5%） | **64,633（60.8%）** |
+| BRAM | 98（70%） | **98（70%）** |
+| 功耗 | 0.661 W | **0.992 W** |
+| 100 MHz WNS | +0.259 ns | **+0.173 ns** |
+| 单次 | 5.01 ms | **5.82 ms** |
+| 决策 | 8/8 | **8/8** |
+
+注意：这不是“三项 65%”。7020 上 BRAM 70% 后只剩约 8,204 个 slice，LUT/FF 最多只能到
+**61.7%**；实测均衡版 54.6/60.8/70，已经是 24-bit 膜电位 + 可布线条件下的最高最小值。
+要三项都 65% 必须把 BRAM 降到 ~91，并把膜电位改成 16-bit 再补片上帧缓冲；16-bit 试过
+（约 52/59/50），最低项反而更低，因此没有作为最终版。
 
 ---
 

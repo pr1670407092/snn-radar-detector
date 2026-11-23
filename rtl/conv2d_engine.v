@@ -1,12 +1,10 @@
 `timescale 1ns/1ps
-// 2D convolution + LIF + SEW engine for the time-frequency RSN.
+// 2D convolution + LIF + SEW engine, resource-balanced build.
 //
-// One engine handles all six layers; the top supplies a runtime layer config.
-// 128 lanes = 8 pixels x 16 output channels (Cout=16) or 4 pixels x 32
-// output channels (Cout=32), 4 groups per row.  One tap (Cin*3*3 taps total)
-// is accumulated per cycle; the 3x3 window comes from a 3-row line buffer
-// loaded from the global spike memory.  Weights are 8-bit, membrane is 24-bit
-// signed, and the SEW residual adds one threshold unit.
+// 128 lanes, one tap/cycle.  A 192-word x 256-bit FF weight cache removes
+// the weight-BRAM read from the MAC loop; L5/L6's remaining 96 words live in
+// a small distributed-RAM tail.  The cache shifts one word per tap so its
+// output is always wcache[0] (no 192:1 read mux).
 module conv2d_engine (
     input  wire        clk,
     input  wire        rst,
@@ -14,7 +12,6 @@ module conv2d_engine (
     output reg         busy,
     output reg         done,
 
-    // runtime layer config
     input  wire [5:0]  cfg_cin,
     input  wire [5:0]  cfg_cout,
     input  wire [5:0]  cfg_hin,
@@ -31,54 +28,54 @@ module conv2d_engine (
     input  wire [11:0] cfg_sew_base,
     input  wire signed [23:0] cfg_th,
 
-    // weight / bias ROM ports (1-cycle registered data)
     output reg  [10:0] w_addr,
     input  wire [255:0] w_data,
     output reg  [7:0]  b_addr,
     input  wire [23:0] b_data,
 
-    // global spike memory (1 read + 1 write port)
     output reg  [11:0] spk_raddr,
     input  wire [31:0] spk_rdata,
     output reg         spk_we,
     output reg  [11:0] spk_waddr,
     output reg  [31:0] spk_wdata,
 
-    // wide membrane memory, 128 x 24-bit per address
     output reg  [9:0]  v_raddr,
     input  wire [3071:0] v_rdata,
     output reg         v_we,
     output reg  [9:0]  v_waddr,
     output reg  [3071:0] v_wdata,
 
-    // number of output spikes in this layer (across all groups)
     output reg  [17:0] spk_count
 );
     localparam S_IDLE      = 5'd0,
                S_BIAS_SET  = 5'd1,
                S_BIAS_WAIT = 5'd2,
                S_BIAS_GET  = 5'd3,
-               S_LD_SET    = 5'd4,
-               S_LD_WAIT   = 5'd5,
-               S_LD_GET    = 5'd6,
-               S_GRP_INIT  = 5'd7,
-               S_GRP_WAIT  = 5'd8,
-               S_MAC       = 5'd9,
-               S_RES_SET   = 5'd10,
-               S_RES_WAIT  = 5'd11,
-               S_RES_GET   = 5'd12,
-               S_LIF       = 5'd13,
-               S_NEXT_GRP  = 5'd14,
-               S_ROW_WR    = 5'd15,
-               S_NEXT_ROW  = 5'd16,
-               S_CNT       = 5'd17,
-               S_LIF2      = 5'd18;
+               S_WC_LOAD   = 5'd4,
+               S_TL_SET    = 5'd5,
+               S_TL_WAIT   = 5'd6,
+               S_TL_GET    = 5'd7,
+               S_LD_SET    = 5'd8,
+               S_LD_WAIT   = 5'd9,
+               S_LD_GET    = 5'd10,
+               S_GRP_INIT  = 5'd11,
+               S_GRP_WAIT  = 5'd12,
+               S_MAC       = 5'd13,
+               S_RES_SET   = 5'd14,
+               S_RES_WAIT  = 5'd15,
+               S_RES_GET   = 5'd16,
+               S_LIF       = 5'd17,
+               S_NEXT_GRP  = 5'd18,
+               S_ROW_WR    = 5'd19,
+               S_NEXT_ROW  = 5'd20,
+               S_CNT       = 5'd21,
+               S_LIF2      = 5'd22,
+               S_WC_WAIT   = 5'd23,
+               S_WC_GET    = 5'd24;
 
     reg [4:0]  state;
     reg [5:0]  row;
     reg [2:0]  group;
-    reg [5:0]  ci_c;
-    reg [1:0]  ky_c, kx_c;
     reg [1:0]  ld_ky;
     reg [5:0]  ld_ci;
     reg        ld_zero;
@@ -86,19 +83,32 @@ module conv2d_engine (
     reg [5:0]  res_idx;
     reg [5:0]  wr_co;
     reg [5:0]  base_i;
-    reg [7:0]  sg;
-    reg [7:0]  sg_r;      // registered window bits for the current MAC tap
-    reg [7:0]  sg_nxt;    // window bits for the next tap
-    reg [5:0]  nci;
-    reg [1:0]  nky, nkx;
 
-    reg signed [23:0] acc  [0:127];
+    (* ram_style = "registers", shreg_extract = "no", srl_style = "register" *)
+    reg [255:0] wcache [0:191];
+    (* ram_style = "distributed" *) reg [255:0] tail_mem [0:95];
+    reg [7:0]  load_cnt;
+    reg [8:0]  p0, ld_p;
+    reg [6:0]  tail_i;
+    reg [8:0]  tap_i;
+    reg [7:0]  sg_r;
+    reg [5:0]  c_ci;
+    reg [1:0]  c_ky, c_kx;
+
+    reg signed [23:0] acc [0:127];
     reg signed [23:0] bias [0:31];
     reg               resvec [0:127];
     reg [33:0]        lbuf [0:2][0:31];
     reg [31:0]        obuf [0:31];
 
     integer l, j, co, g, row_i;
+
+    wire [8:0] tap_words = {3'd0, cfg_cin} * 9;
+    wire [8:0] pat_len = (cfg_cin == 6'd1) ? 9'd16 : 9'd192;
+    wire [8:0] proc_len = (tap_words > 9'd192) ? 9'd288 : pat_len;
+    wire [8:0] tail_idx = (tap_i >= 9'd192) ? (tap_i - 9'd192) : 9'd0;
+    wire [255:0] w_cur = (tap_i < 9'd192) ? wcache[0] : tail_mem[tail_idx];
+
     wire signed [25:0] th_ext = {{2{cfg_th[23]}}, cfg_th};
     reg signed [25:0] v_prev, cur, v_sum, v_new;
     reg               fire;
@@ -107,35 +117,21 @@ module conv2d_engine (
     reg [7:0]         pc_q;
     reg [127:0]       fire_vec;
 
-    // decode the current tap / group window
     always @* begin
         base_i = group * ((cfg_cout == 6'd16) ? 6'd8 : 6'd4) * cfg_stride;
-        sg = 8'b00000000;
-        for (j = 0; j < 8; j = j + 1)
-            if (j < ((cfg_cout == 6'd16) ? 8 : 4))
-                sg[j] = lbuf[ky_c][ci_c][base_i + j * cfg_stride + kx_c];
     end
 
-    // next tap's window bits (registered into sg_r at the end of this MAC cycle)
-    always @* begin
-        nci = ci_c; nky = ky_c; nkx = kx_c;
-        if (kx_c == 2'd2) begin
-            nkx = 2'd0;
-            if (ky_c == 2'd2) begin
-                nky = 2'd0;
-                nci = ci_c + 6'd1;
-            end else begin
-                nky = ky_c + 2'd1;
-            end
-        end else begin
-            nkx = kx_c + 2'd1;
+    function [7:0] win_coord;
+        input [5:0] fci;
+        input [1:0] fky, fkx;
+        integer jj;
+        begin
+            win_coord = 8'd0;
+            for (jj = 0; jj < 8; jj = jj + 1)
+                if (jj < ((cfg_cout == 6'd16) ? 8 : 4))
+                    win_coord[jj] = lbuf[fky][fci][base_i + jj * cfg_stride + fkx];
         end
-        sg_nxt = 8'b00000000;
-        if (nci < cfg_cin)
-            for (j = 0; j < 8; j = j + 1)
-                if (j < ((cfg_cout == 6'd16) ? 8 : 4))
-                    sg_nxt[j] = lbuf[nky][nci][base_i + j * cfg_stride + nkx];
-    end
+    endfunction
 
     always @(posedge clk) begin
         if (rst) begin
@@ -155,14 +151,28 @@ module conv2d_engine (
             v_wdata <= 3072'd0;
             row <= 6'd0;
             group <= 3'd0;
-            ci_c <= 6'd0; ky_c <= 2'd0; kx_c <= 2'd0;
             ld_ky <= 2'd0;
             ld_ci <= 6'd0;
             ld_zero <= 1'b0;
             b_idx <= 6'd0;
             res_idx <= 6'd0;
             wr_co <= 6'd0;
+            load_cnt <= 8'd0;
+            p0 <= 9'd0;
+            ld_p <= 9'd0;
+            tail_i <= 7'd0;
+            tap_i <= 9'd0;
+            c_ci <= 6'd0;
+            c_ky <= 2'd0;
+            c_kx <= 2'd0;
             sg_r <= 8'd0;
+            pc_q <= 8'd0;
+            for (l = 0; l < 192; l = l + 1)
+                wcache[l] <= 256'd0;
+            for (l = 0; l < 128; l = l + 1) begin
+                acc[l] <= 24'sd0;
+                resvec[l] <= 1'b0;
+            end
         end else begin
             spk_we <= 1'b0;
             v_we   <= 1'b0;
@@ -187,14 +197,62 @@ module conv2d_engine (
                 S_BIAS_GET: begin
                     bias[b_idx[4:0]] <= $signed(b_data);
                     if (b_idx == 6'd31) begin
+                        load_cnt <= 8'd0;
+                        p0 <= 9'd0;
+                        state <= S_WC_LOAD;
+                    end else begin
+                        b_idx <= b_idx + 6'd1;
+                        state <= S_BIAS_SET;
+                    end
+                end
+
+                // fill 192 cache words (3-cycle ROM read per word)
+                S_WC_LOAD: begin
+                    w_addr <= cfg_wbase + {2'd0, p0};
+                    state <= S_WC_WAIT;
+                end
+                S_WC_WAIT: state <= S_WC_GET;
+                S_WC_GET: begin
+                    for (l = 0; l < 191; l = l + 1)
+                        wcache[l] <= wcache[l + 1];
+                    wcache[191] <= (p0 < tap_words) ? w_data : 256'd0;
+                    if (p0 + 9'd1 >= pat_len) p0 <= 9'd0;
+                    else                      p0 <= p0 + 9'd1;
+                    if (load_cnt == 8'd191) begin
+                        load_cnt <= 8'd0;
+                        if (tap_words > 9'd192) begin
+                            tail_i <= 7'd0;
+                            state <= S_TL_SET;
+                        end else begin
+                            row <= 6'd0;
+                            group <= 3'd0;
+                            ld_ky <= 2'd0;
+                            ld_ci <= 6'd0;
+                            state <= S_LD_SET;
+                        end
+                    end else begin
+                        load_cnt <= load_cnt + 8'd1;
+                        state <= S_WC_LOAD;
+                    end
+                end
+
+                // 96 tail words for L5/L6
+                S_TL_SET: begin
+                    w_addr <= cfg_wbase + 9'd192 + {2'd0, tail_i};
+                    state <= S_TL_WAIT;
+                end
+                S_TL_WAIT: state <= S_TL_GET;
+                S_TL_GET: begin
+                    tail_mem[tail_i] <= w_data;
+                    if (tail_i == 7'd95) begin
                         row <= 6'd0;
                         group <= 3'd0;
                         ld_ky <= 2'd0;
                         ld_ci <= 6'd0;
                         state <= S_LD_SET;
                     end else begin
-                        b_idx <= b_idx + 6'd1;
-                        state <= S_BIAS_SET;
+                        tail_i <= tail_i + 7'd1;
+                        state <= S_TL_SET;
                     end
                 end
 
@@ -238,14 +296,13 @@ module conv2d_engine (
                     if (group == 3'd0)
                         for (l = 0; l < 32; l = l + 1)
                             obuf[l] <= 32'd0;
-                    ci_c <= 6'd0; ky_c <= 2'd0; kx_c <= 2'd0;
-                    w_addr <= cfg_wbase;
+                    tap_i <= 9'd0;
                     v_raddr <= cfg_vbase + row * 4 + group;
                     state <= S_GRP_WAIT;
                 end
                 S_GRP_WAIT: begin
-                    w_addr <= cfg_wbase + 11'd1;
-                    sg_r <= sg;
+                    sg_r <= win_coord(6'd0, 2'd0, 2'd0);
+                    c_ci <= 6'd0; c_ky <= 2'd0; c_kx <= 2'd1;
                     state <= S_MAC;
                 end
 
@@ -254,29 +311,32 @@ module conv2d_engine (
                         co = (cfg_cout == 6'd16) ? (l & 15) : (l & 31);
                         g  = (cfg_cout == 6'd16) ? (l >> 4) : (l >> 5);
                         if (sg_r[g])
-                            acc[l] <= acc[l] + $signed(w_data[8*co +: 8]);
+                            acc[l] <= acc[l] + $signed(w_cur[8*co +: 8]);
                     end
-                    sg_r <= sg_nxt;
-                    if (ci_c == cfg_cin - 1 && ky_c == 2'd2 && kx_c == 2'd2) begin
+                    if (tap_i + 9'd1 < tap_words) begin
+                        sg_r <= win_coord(c_ci, c_ky, c_kx);
+                        if (c_kx == 2'd2) begin
+                            c_kx <= 2'd0;
+                            if (c_ky == 2'd2) begin
+                                c_ky <= 2'd0;
+                                c_ci <= c_ci + 6'd1;
+                            end else c_ky <= c_ky + 2'd1;
+                        end else c_kx <= c_kx + 2'd1;
+                    end else begin
+                        sg_r <= 8'd0;
+                    end
+                    if (tap_i < 9'd192) begin
+                        for (l = 0; l < 191; l = l + 1)
+                            wcache[l] <= wcache[l + 1];
+                        wcache[191] <= wcache[0];
+                    end
+                    if (tap_i + 9'd1 >= proc_len) begin
                         if (cfg_sew) begin
                             res_idx <= 6'd0;
                             state <= S_RES_SET;
-                        end else begin
-                            state <= S_LIF;
-                        end
+                        end else state <= S_LIF;
                     end else begin
-                        if (kx_c == 2'd2) begin
-                            kx_c <= 2'd0;
-                            if (ky_c == 2'd2) begin
-                                ky_c <= 2'd0;
-                                ci_c <= ci_c + 6'd1;
-                            end else begin
-                                ky_c <= ky_c + 2'd1;
-                            end
-                        end else begin
-                            kx_c <= kx_c + 2'd1;
-                        end
-                        w_addr <= cfg_wbase + ci_c * 9 + ky_c * 3 + kx_c + 11'd2;
+                        tap_i <= tap_i + 9'd1;
                     end
                 end
 
