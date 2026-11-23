@@ -252,7 +252,9 @@
     <h3>3.2 为什么 2D RSN 比 1D MLP 强</h3>
     <p>1D MLP 把 512 点 FFT 幅度谱压成向量，丢掉了“频率随时间怎么变”的结构；2D TFG 保留了 chirp 的斜线、杂波的条纹和多普勒的局部结构。对 LFM 回波，这是决定性的：同一套 28k 参数，2D 残差 SNN 能到 99.7%，1D 三层 MLP 只有 96.6%。这不是“网络更大”，而是<strong>输入表示更适合 2D 卷积</strong>。</p>
 
-    <h3>3.3 Spiking U-Net：为什么没继续</h3>
+    <div class="callout warn"><strong>深度/宽度消融（本地）：</strong>8 层（46,706 参数）test 99.49%；width=24（62,954 参数）val 99.85%、test 99.61%（过拟合）；6 层（28,146 参数）test 99.72%。合成测试集已饱和——继续加层/加宽不涨点。板子的 LUT/FF 余量应换速度（128 lane）或更难数据（低 SNR/低 CNR、海尖峰、失配、IPIX），而不是堆层数。</div>
+
+<h3>3.3 Spiking U-Net：为什么没继续</h3>
     <p>Spiking U-Net 适合“输出干净 range profile / 做杂波抑制 / 目标定位”，需要 per-bin 掩码标签；当前任务是二元检测，TFG RSN 直接分类已经到 99.7%，没有必要引入 U-Net 的编码器-解码器和逐 bin 监督。U-Net 留作后续“杂波抑制/定位”的备选。</p>
   </section>
 

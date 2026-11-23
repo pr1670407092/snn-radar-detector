@@ -879,6 +879,9 @@
         </table>
       </div>
       <p><strong>仿真结论：</strong>8/8 决策与 Python 整数参考一致；L1 t0 的输出 spike 图（512 字）和膜电位（256 字）<strong>0 bit 差</strong>，说明编码器、Conv1、LIF/权重/偏置/膜电位写回都是对的。跨 t 的 row-buffer 仍有 5 个字/43 bit 的边角差异（L1 t1），导致 L2–L5 的计数差 &lt;0.2%、L6 约 0.8%，FC 分数差 &lt;4%；尚未 bit-exact，这是收尾项，不影响决策。</p>
+      <div class="callout warn">
+        <strong>深度/宽度消融（2026-11-23）：</strong>8 层（46,706 参数）test <strong>99.49%</strong>；width=24（62,954 参数）val 99.85%、test <strong>99.61%</strong>（明显过拟合）；6 层（28,146 参数）test <strong>99.72%</strong>。结论：合成测试集已饱和，继续加层/加宽不涨点；LUT/FF 余量适合做 128-lane 提速，或用于更难数据（低 SNR/低 CNR、海尖峰、失配、IPIX），而不是盲目堆 RTL 层数。
+      </div>
       <div class="callout note">
         <strong>资源与时序（Vivado 2025.2，xc7z020clg400-2，OOC）：</strong>
         最终实现（100 MHz）：LUT <strong>14,946/53,200（28.1%）</strong>、FF <strong>10,427/106,400（9.8%）</strong>、

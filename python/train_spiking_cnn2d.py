@@ -21,11 +21,12 @@ DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class SpikingCNN2D(nn.Module):
-    def __init__(self, width=16, T=4, sew=True, readout="membrane"):
+    def __init__(self, width=16, T=4, sew=True, readout="membrane", extra=0):
         super().__init__()
         self.T = T
         self.sew = sew
         self.readout = readout
+        self.extra = extra
         self.c1 = nn.Conv2d(1, width, 3, padding=1, bias=False)
         self.b1 = nn.BatchNorm2d(width)
         self.c2 = nn.Conv2d(width, width, 3, padding=1, bias=False)
@@ -38,6 +39,11 @@ class SpikingCNN2D(nn.Module):
         self.b5 = nn.BatchNorm2d(width * 2)
         self.c6 = nn.Conv2d(width * 2, width * 2, 3, padding=1, bias=False)
         self.b6 = nn.BatchNorm2d(width * 2)
+        if extra:
+            self.c7 = nn.Conv2d(width * 2, width * 2, 3, padding=1, bias=False)
+            self.b7 = nn.BatchNorm2d(width * 2)
+            self.c8 = nn.Conv2d(width * 2, width * 2, 3, padding=1, bias=False)
+            self.b8 = nn.BatchNorm2d(width * 2)
         self.fc = nn.Linear(width * 2, 2)
 
     @staticmethod
@@ -55,6 +61,9 @@ class SpikingCNN2D(nn.Module):
         v4 = torch.zeros(B, self.b4.num_features, 16, 16, device=sp.device)
         v5 = torch.zeros_like(v4)
         v6 = torch.zeros_like(v4)
+        if self.extra:
+            v7 = torch.zeros_like(v4)
+            v8 = torch.zeros_like(v4)
         counts = torch.zeros_like(v4)
         for t in range(self.T):
             s = sp[:, t, :, :].unsqueeze(1).float()
@@ -70,9 +79,21 @@ class SpikingCNN2D(nn.Module):
             if self.sew:
                 cur = cur + s4
             s6, v6 = self._lif(v6, cur)
-            counts = counts + s6
+            if self.extra:
+                s7, v7 = self._lif(v7, self.b7(self.c7(s6)))
+                cur = self.b8(self.c8(s7))
+                if self.sew:
+                    cur = cur + s6
+                s8, v8 = self._lif(v8, cur)
+                counts = counts + s8
+            else:
+                counts = counts + s6
+        if self.extra:
+            vout = v8
+        else:
+            vout = v6
         if self.readout == "membrane":
-            feat = v6.amax(dim=(2, 3))
+            feat = vout.amax(dim=(2, 3))
         else:
             feat = counts.amax(dim=(2, 3)) / self.T
         return self.fc(feat)
@@ -110,6 +131,8 @@ def main():
     ap.add_argument("--T", type=int, default=4)
     ap.add_argument("--sew", type=int, default=1)
     ap.add_argument("--readout", choices=["count", "membrane"], default="membrane")
+    ap.add_argument("--extra", type=int, default=0,
+                    help="add a 32ch residual block (2 more conv layers)")
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--batch", type=int, default=128)
     ap.add_argument("--lr", type=float, default=1e-3)
@@ -131,10 +154,10 @@ def main():
         torch.utils.data.TensorDataset(*data["test"]), batch_size=128, shuffle=False)
 
     model = SpikingCNN2D(width=args.width, T=args.T, sew=bool(args.sew),
-                         readout=args.readout).to(DEV)
+                         readout=args.readout, extra=args.extra).to(DEV)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"SpikingCNN2D width={args.width} T={args.T} sew={args.sew} "
-          f"readout={args.readout} params={n_params}")
+          f"readout={args.readout} extra={args.extra} params={n_params}")
 
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
@@ -182,7 +205,7 @@ def main():
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     torch.save(dict(state_dict=best_state, width=args.width, T=args.T,
-                    sew=bool(args.sew), readout=args.readout,
+                    sew=bool(args.sew), readout=args.readout, extra=args.extra,
                     n_params=n_params, test_acc=test_acc), args.out)
     print("saved", args.out)
 

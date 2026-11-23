@@ -80,7 +80,7 @@ def main():
 
     ck = torch.load(args.model, map_location="cpu", weights_only=False)
     model = SpikingCNN2D(width=ck["width"], T=ck["T"], sew=ck["sew"],
-                         readout=ck["readout"]).to(DEV)
+                         readout=ck["readout"], extra=ck.get("extra", 0)).to(DEV)
     model.load_state_dict(ck["state_dict"])
 
     d = np.load(args.data)
