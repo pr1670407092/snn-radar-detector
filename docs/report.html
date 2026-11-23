@@ -781,6 +781,7 @@
       <p class="small muted">文件：<code>python/train_cnn.py</code>、<code>python/convert_cnn_snn.py</code>、<code>python/extract_cnn_feat.py</code>、<code>models/cnn_mf_max_r0.pt</code>、<code>models/ann_hybrid.pt</code>、<code>data/mf_cnn_feat.npz</code>、<code>docs/metrics_cnn_mf.json</code>、<code>docs/metrics_hybrid_snn.json</code>。MF 特征生成脚本在 <code>archive/mf_mlp_experiment/</code>。</p>
 
       <h3>9.8 2024–2026 新模型：SNN 主力的可行路线</h3>
+      <p class="small muted">独立调研报告（2020–2026，含雷达 SNN、QCFS/PASCAL/SEW、Transformer/SSM、7020 硬件与证据边界）：<code>docs/survey.html</code> / <code>docs/survey.pdf</code>（9 页）。</p>
       <p>检索了近三年“SNN 做主要计算”的模型。结论：<strong>SpikingMamba/Spikformer 这类大模型不适合 7020；最实用的是时频图 + 2D 残差 spiking CNN（RSN，已在 9.9 验证 99.72%），以及小 1D spiking CNN/SEW + QCFS/PASCAL；spiking U-Net 留作杂波抑制备选。</strong></p>
       <div class="table-wrap">
         <table class="long-table">
@@ -976,6 +977,7 @@ vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d.tcl</pre>
               <tr><td><code>models/cnn2d_tf.pt / spiking_cnn2d_tf.pt</code></td><td>2D ANN / 2D SNN 权重</td></tr>
               <tr><td><code>docs/metrics_cnn2d.json</code></td><td>2D ANN 精度/参数量</td></tr>
               <tr><td><code>docs/metrics_spiking_cnn2d.json</code></td><td>2D SNN 指标、PFA 表、分层脉冲率</td></tr>
+              <tr><td><code>docs/survey.html / survey.pdf</code></td><td>独立调研报告（9 页）</td></tr>
               <tr><td><code>python/train_ann.py</code></td><td>ANN 训练</td></tr>
               <tr><td><code>python/convert_snn.py</code></td><td>ANN→整数 SNN 参考模型</td></tr>
               <tr><td><code>python/export_hw.py</code></td><td>权重/偏置/测试向量导出</td></tr>

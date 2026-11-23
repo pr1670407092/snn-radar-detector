@@ -1,21 +1,23 @@
 # 三层 SNN 雷达目标检测加速器（ZYNQ-7020 / 正点原子领航者）
 
-面向“雷达回波有无目标”的二分类任务，在 **XC7Z020-2CLG400** 上实现了三版三层 SNN：
+面向“雷达回波有无目标”的二分类任务，在 **XC7Z020-2CLG400** 上完成了算法、1D/2D RTL、综合实现、技术报告和独立调研。
 
-- **8-bit 基线**：512 → 512 → 512 → 2，525,312 突触，int8 权重，32 lane；
-- **8-bit 效率版（推荐）**：512 → 256 → 128 → 2，164,096 突触，int8 权重，32 lane；
-- **4-bit 容量版（实验）**：512 → 704 → 704 → 2，857,472 突触，int4 权重，64 lane。
+## 核心结果（先看这里）
 
-膜电位 24 bit、无乘法器；三版 RTL 均与 Python 整数参考模型**逐计数完全一致**。
+| 方向 | 结果 |
+|---|---|
+| **算法最佳：时频 RSN** | STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，6 层卷积全 spiking；float **99.72%** / int8 **99.62%**，PD 99.67% / PFA 0.22%，AUC **0.9998**；PFA 1e-3 → PD 99.47% / PFA 0.05% |
+| **2D RTL（最新）** | 64-lane / **100 MHz**；**8/8 决策**；WNS **+0.070 ns**、WHS +0.098、0 失败；LUT **14,946**、FF **10,427**、BRAM **98/140**、DSP 2、**0.584 W**；**9.01 ms/次** |
+| **低延迟：1D 8-bit** | 512→256→128→2，164,096 突触，**96.64%**，PD 94.67% / PFA 1.44%，**1.77 ms**，BRAM 36.5/140；RTL 与 Python **bit-exact 8/8** |
+| **容量实验：4-bit** | 512→704→704→2，857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140；仅容量实验 |
 
-另试验了 **MF + 1D CNN + 32-32-2 SNN 头**（CNN 98.01%，SNN 头 97.94%，SNN 仅 2,112 突触；CNN 前端非 spiking，见 1.3）。
+- 1D 三版 RTL（512-512-512 / 512-256-128 / 512-704-704）均与 Python 整数模型逐计数一致；2D RTL 8/8 决策，L2–L5 计数差 <0.2%、L6 约 0.8%（尚未 bit-exact）。
+- 混合方案：MF + 1D CNN + 32-32-2 SNN 头 97.94%（SNN 只有 2,112 突触，不算 SNN 主力，见 1.3）。
+- **独立调研报告（9 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
+- **技术报告（15 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
+- **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
 
-最新算法结果（1.5）：**STFT 32×32 时频图 + 2D 残差 spiking CNN（time-frequency RSN）**，T=4，28,146 参数，6 层卷积全部 spiking，测试 **99.72%**，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。2D 卷积 RTL 待实现。
-
-> 状态：已完成数据合成、ANN 训练、ANN→SNN 量化转换、RTL、Vivado xsim 仿真、
-> Vivado 综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
->
-> 面向老师汇报的技术报告：[docs/report.html](docs/report.html)（浏览器打开，右上角可打印/导出 PDF）；已导出的 A4 PDF 版：[docs/report.pdf](docs/report.pdf)（15 页）。
+> 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
 
 ---
 

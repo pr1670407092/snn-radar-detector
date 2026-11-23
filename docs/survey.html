@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNN 雷达目标检测与高效模型调研报告（2020–2026）</title>
+<style>
+  :root{
+    --ink:#14212b; --muted:#5d6f7f; --line:#dbe4ec; --bg:#f3f7fa;
+    --card:#ffffff; --accent:#0b6e6e; --accent2:#0b4f8a;
+    --good:#0f766e; --warn:#b45309; --soft:#eef5f7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Microsoft YaHei","Noto Sans SC","PingFang SC",Arial,sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.68; font-size:14px;
+  }
+  .page{max-width:1000px;margin:0 auto;padding:26px 30px 54px}
+  .hero{
+    background:linear-gradient(135deg,#0a2b45 0%,#0b4f6e 48%,#0b6e6e 100%);
+    color:#fff;border-radius:18px;padding:34px 38px 30px;
+    box-shadow:0 10px 28px rgba(11,79,110,.18);position:relative;overflow:hidden;
+  }
+  .hero:after{
+    content:"";position:absolute;right:-70px;top:-90px;width:300px;height:300px;
+    border:38px solid rgba(255,255,255,.08);border-radius:50%;
+  }
+  .kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#cfe9e6;margin-bottom:10px}
+  .hero h1{font-size:31px;line-height:1.32;margin:0 0 12px;font-weight:700}
+  .hero .sub{font-size:14px;color:#d9eef0;max-width:820px;margin:0 0 18px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px}
+  .badges span{
+    font-size:11.5px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);
+    padding:4px 10px;border-radius:999px;color:#eefafa;
+  }
+  .tldr{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 6px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+  .kpi .v{font-size:22px;font-weight:700;color:var(--accent2);line-height:1.2}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:3px}
+  .kpi .s{font-size:11px;color:var(--accent);margin-top:5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:16px 0}
+  h2{font-size:21px;line-height:1.4;margin:28px 0 10px;padding-left:11px;border-left:5px solid var(--accent);color:#12303d}
+  h2 .num{color:var(--accent);font-size:14px;margin-right:6px}
+  h3{font-size:15.5px;color:var(--accent2);margin:18px 0 7px}
+  h4{font-size:13.5px;margin:12px 0 5px;color:#264653}
+  p{margin:7px 0}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .tag{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:999px;background:var(--soft);color:var(--accent);border:1px solid #d3e4e6;margin-right:4px}
+  .tag.warn{background:#fff7ed;color:var(--warn);border-color:#fed7aa}
+  .tag.good{background:#ecfdf5;color:var(--good);border-color:#a7f3d0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .callout{border-left:4px solid var(--accent);background:#f0f8f8;border-radius:0 10px 10px 0;padding:12px 15px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--warn);background:#fff8ee}
+  .callout.note{border-left-color:var(--accent2);background:#eff6fb}
+  .table-wrap{overflow-x:auto;margin:10px 0 4px}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px}
+  th{background:#e9f3f5;color:#153540;font-weight:600;text-align:left}
+  th,td{border:1px solid var(--line);padding:6px 7px;vertical-align:top;word-wrap:break-word}
+  tr:nth-child(even) td{background:#fbfdfe}
+  td.num,th.num{text-align:right}
+  .refs{font-size:11.5px;line-height:1.65;padding-left:22px}
+  .refs li{margin:5px 0}
+  .timeline{display:grid;grid-template-columns:80px 1fr;gap:0;border-left:3px solid #cfe2e5;margin:8px 0 4px;padding-left:14px}
+  .timeline .y{font-weight:700;color:var(--accent);font-size:13px;padding:6px 0}
+  .timeline .e{font-size:12.2px;padding:5px 0;border-bottom:1px dashed #e2ebf0}
+  .footer{font-size:11px;color:#71808d;text-align:center;margin-top:26px;padding-top:12px;border-top:1px solid var(--line)}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .lead{font-size:14.5px;color:#2a4655}
+  .metric-note{font-size:11px;color:var(--muted)}
+  @page{size:A4;margin:13mm 11mm}
+  @media print{
+    body{background:#fff;font-size:11.5px}
+    .page{max-width:none;padding:0}
+    .hero{border-radius:0;box-shadow:none}
+    .card{box-shadow:none;break-inside:auto}
+    .kpi,.callout{box-shadow:none;break-inside:avoid}
+    h2{break-after:avoid}
+    h3,h4{break-after:avoid}
+    table{font-size:10px}
+    table tr{break-inside:avoid}
+    .table-wrap{overflow:visible}
+    .tldr{grid-template-columns:repeat(3,1fr)}
+    .grid2{grid-template-columns:1fr 1fr}
+    a{color:inherit}
+  }
+  @media screen and (max-width:760px){
+    .tldr{grid-template-columns:1fr}
+    .grid2{grid-template-columns:1fr}
+    .hero h1{font-size:24px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div class="kicker">Technical Survey · 2020–2026</div>
+    <h1>脉冲神经网络（SNN）雷达目标检测<br>与高效模型调研报告</h1>
+    <p class="sub">从海杂波 RSN、时频残差脉冲网络，到 ZYNQ-7020 上的 64-lane / 100 MHz 2D 卷积引擎——把“SNN 做主力”这件事从论文讲到可综合硬件。</p>
+    <div class="badges">
+      <span>5 篇雷达 SNN</span>
+      <span>10+ 个高效 SNN 模型</span>
+      <span>ANN→SNN / 直接训练 / Transformer / SSM</span>
+      <span>ZYNQ-7020 实测综合</span>
+      <span>2026-11-23</span>
+    </div>
+  </header>
+
+  <section class="tldr">
+    <div class="kpi"><div class="v">99.72%</div><div class="l">时频 RSN（float，8,000 测试集）</div><div class="s">int8 参考 99.62%；PD 99.67% / PFA 0.22%</div></div>
+    <div class="kpi"><div class="v">100 MHz</div><div class="l">2D 卷积引擎实现</div><div class="s">WNS +0.070 ns；8/8 决策；9.01 ms/次</div></div>
+    <div class="kpi"><div class="v">0.584 W</div><div class="l">2D RTL 功耗（vectorless）</div><div class="s">LUT 14,946 / FF 10,427 / BRAM 98 / DSP 2</div></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">00</span>执行摘要：六个结论</h2>
+    <ol class="lead">
+      <li><strong>雷达 SNN 已经从“分类”走到“检测 + PFA 控制”。</strong>GRSL 2025 的 RSN 用 time-frequency graphs（TFG）+ 残差脉冲网络 + 膜电位读出，在 IPIX 上做到 PFA 1e-3 时 PD 0.8266，能耗约为 ResNet18 的 70%。这是我们引用的核心论文。</li>
+      <li><strong>对本任务，最有效的不是更深的 MLP，而是“时频图 + 2D 残差脉冲 CNN”。</strong>本地 float SNN 99.72%、int8 参考 99.62%，显著高于 1D 纯 SNN 的 96.64%；离 ANN 上界 99.83% 只差 0.11 个点。</li>
+      <li><strong>“SNN 做主力”可以落到 7020。</strong>64-lane 2D 引擎在 100 MHz 实现，8/8 决策通过，LUT 14,946（28.1%）、BRAM 98/140（70%）、功耗 0.584 W；单次 9.01 ms。</li>
+      <li><strong>低延迟仍然是 1D 8-bit 256-128 的天下。</strong>96.64%、1.77 ms、BRAM 36.5/140，且 RTL 与 Python 逐计数 bit-exact；2D RSN 是“精度优先”的版本。</li>
+      <li><strong>纯 SNN 的瓶颈在训练 recipe，不在“能不能跑”。</strong>朴素 QCFS 原型只有约 51%（λ/θ/v0/T 没对齐）；direct BPTT + SEW 残差 + 膜电位读出才是 2D RSN 能到 99.6% 的原因。</li>
+      <li><strong>研究空白很清楚：</strong>没有公开的 7020 雷达 SNN 实现；IEEE 雷达论文全文大多闭源；真实 IPIX/实测数据、event-driven 卷积、2D bit-exact 都还没做完。</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">01</span>调研问题、方法与证据边界</h2>
+    <div class="grid2">
+      <div>
+        <h3>1.1 四个问题</h3>
+        <ul>
+          <li><strong>Q1：</strong>雷达目标检测/识别上，SNN 已经做到什么程度？输入、骨干、读出、PFA 分别怎么做？</li>
+          <li><strong>Q2：</strong>2020–2026 有哪些“更高效”的 SNN 模型？哪些能放进 7020？</li>
+          <li><strong>Q3：</strong>SNN 硬件加速器的关键结构是什么？我们的 1D/2D 引擎处在什么位置？</li>
+          <li><strong>Q4：</strong>对“雷达回波有无目标 + 7020 + PL-only”这个具体任务，最值得复现/落地的是哪条路线？</li>
+        </ul>
+      </div>
+      <div>
+        <h3>1.2 检索策略</h3>
+        <ul>
+          <li><strong>来源：</strong>IEEE Xplore（GRSL / RadarConf / IJCNN）、arXiv、Semantic Scholar、期刊 DOI 页。</li>
+          <li><strong>关键词：</strong>spiking neural network + radar / sea clutter / HRRP / time-frequency / detection；ANN-SNN conversion；QCFS；SEW-ResNet；spiking transformer；event-driven ADC；FPGA SNN accelerator。</li>
+          <li><strong>时间：</strong>以 2020–2026 为主，保留 2021 的 SEW-ResNet、FMCW Fourier SNN 作为基础。</li>
+          <li><strong>纳入：</strong>直接面向雷达检测/识别，或对 7020 落地有明确参考价值的 SNN 模型/硬件。</li>
+        </ul>
+      </div>
+    </div>
+    <h3>1.3 证据等级（必须说清楚）</h3>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:24%"><col style="width:42%"><col style="width:34%"></colgroup>
+        <thead><tr><th>证据</th><th>覆盖的论文</th><th>我们实际拿到的内容</th></tr></thead>
+        <tbody>
+          <tr><td><strong>全文</strong></td><td>EMRFormer（arXiv:2606.24075）</td><td>arXiv PDF + 文本；参数、T、OA、功耗结论可直接引用</td></tr>
+          <tr><td><strong>摘要 / 元数据</strong></td><td>GRSL 2025 RSN、RadarConf 2024 HRRP、IJCNN 2026 STT</td><td>Semantic Scholar JSON（题名/作者/DOI/摘要）；IEEE 全文闭源</td></tr>
+          <tr><td><strong>题名 / 公开摘要</strong></td><td>GRSL 2026 TF-Spkformer</td><td>摘要为空；只按题名与主题判断，不引用未公开指标</td></tr>
+          <tr><td><strong>arXiv / 会议页</strong></td><td>QCFS、PASCAL、SEW-ResNet、Fast-SNN、QP-SNN、Spikformer、P-SpikeSSM、SpikCommander、MRA-SNN、gamma-ray</td><td>题名、作者、摘要/方法要点；未逐篇复现</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn"><strong>边界：</strong>这不是 PRISMA 系统综述，也不是“所有论文都读完”的元分析。IEEE 的 4 篇雷达论文全文没有开放获取，数值来自摘要；本地 99.72% 是合成数据，不能直接和 IPIX 的 PD 0.8266 对比。报告里的“对比”是<strong>任务相关性对比</strong>，不是同数据同协议的排名。</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">02</span>雷达 SNN 研究现状</h2>
+    <p>把 5 篇雷达 SNN 放在一张表里，可以看到三条明显路线：<strong>时频图 + 残差 CNN</strong>、<strong>神经形态 ADC + 异步 HRRP</strong>、<strong>spiking transformer / SSM</strong>。对我们这个“频域/时频域、二元检测、7020”的任务，第一条最匹配。</p>
+
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:19%"><col style="width:20%"><col style="width:25%"><col style="width:12%"><col style="width:24%"></colgroup>
+        <thead><tr><th>论文</th><th>任务 / 数据</th><th>输入 / 架构 / 读出</th><th>指标 / 规模</th><th>对本项目</th></tr></thead>
+        <tbody>
+          <tr><td><strong>[1] GRSL 2025 RSN</strong><br><span class="small muted">Jiao et al.<br>DOI 10.1109/LGRS.2025.3529956</span></td><td>海面小目标检测；IPIX；观测 1.024 s</td><td>TFG → 残差 spiking 网络（RSN）→ 膜电位读出，阈值控 PFA</td><td>PFA 1e-3 时 PD <strong>0.8266</strong>；能耗约为 ResNet18 的 <strong>70%</strong></td><td><strong>本报告引用的核心论文</strong>；我们的 TFG + 2D 残差 SNN 就是按这条路线做的</td></tr>
+          <tr><td><strong>[2] RadarConf 2024 HRRP</strong><br><span class="small muted">Herath et al.<br>DOI 10.1109/RadarConf2458775.2024.10549488</span></td><td>HRRP 目标识别；神经形态 ADC 异步采样</td><td>异步 HRRP 样本 → 专用 SNN；不使用匹配滤波/规则采样</td><td>摘要称采样率降低 <strong>&gt;95%</strong>；全文闭源，未见精度/T</td><td>前端 ADC 不同；对“event-driven 前端”有参考，不是我们的二元检测</td></tr>
+          <tr><td><strong>[3] IJCNN 2026 STT</strong><br><span class="small muted">Zhang et al.<br>DOI 10.1109/IJCNN69854.2026.11729898</span></td><td>雷达人体活动识别（微多普勒 HAR）</td><td>拓扑正则 spiking transformer（STAtten + LIF + TopoLoss）</td><td>摘要/报道 <strong>98.99%</strong>；模型/注意力对 7020 太大</td><td>任务不同；证明 spiking transformer 能做雷达，但不适合 7020</td></tr>
+          <tr><td><strong>[4] GRSL 2026 TF-Spkformer</strong><br><span class="small muted">Wang et al.<br>DOI 10.1109/LGRS.2026.3753747</span></td><td>海杂波小目标检测</td><td>轻量时频 SNN（题名即“lightweight time-frequency spiking”）</td><td>摘要为空；未见公开指标</td><td><strong>主题最接近</strong>；只能作为方向参考，不能引用数值</td></tr>
+          <tr><td><strong>[5] EMRFormer</strong><br><span class="small muted">Li et al.<br>arXiv:2606.24075</span></td><td>原始 IQ 雷达/通信调制识别（AMR）</td><td>自适应 spike encoder + integer LIF + SSCNN + spike-driven transformer</td><td>0.31 / 0.53 M；<strong>T=1</strong>；RML OA 62.50–87.40%；>90% 理论降功耗</td><td>任务不同（不是检测）；transformer 对 7020 太重</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>2.1 GRSL 2025 RSN：为什么它最值得我们跟</h3>
+    <p>RSN 的关键不是“用了 SNN”，而是三件事同时成立：</p>
+    <ul>
+      <li><strong>输入选对了：</strong>time-frequency graph 把 LFM 的 chirp 线、杂波和多普勒都放在一张 2D 图里，2D 卷积比 1D 幅度谱更有分辨力；</li>
+      <li><strong>骨干选对了：</strong>残差连接让脉冲网络能加深，同时不把梯度/膜电位炸掉；</li>
+      <li><strong>读出选对了：</strong>用最后层膜电位（而不是只看 spike count）做统计量，再在验证集负样本上标定 PFA。对雷达检测，这是“可部署”的关键。</li>
+    </ul>
+    <p>我们在 9.9/9.10 节按这条路线做了本地复现：STFT 32×32 TFG + 2D 残差 spiking CNN（6 层卷积全部 spiking，SEW-ADD，T=4），float 99.72%、int8 99.62%；PFA 1e-3 时 PD 99.47%、实测 PFA 0.05%。这不是 IPIX 的 0.8266，但说明“TFG + RSN”在本任务上成立。</p>
+
+    <h3>2.2 其余雷达路线：一句话判断</h3>
+    <ul>
+      <li><strong>神经形态 ADC + 异步 HRRP：</strong>解决“采样功耗/带宽”，不是“检测算法”；适合做前端，不适合替代我们的 2D 检测骨干。</li>
+      <li><strong>Spiking transformer / SSM：</strong>在 HAR/AMR 上能出高精度，但参数量、T、注意力/扫描结构对 7020 不友好；除非做 4-bit + 大 BRAM + 多帧，否则不优先。</li>
+      <li><strong>轻量 TF-Spkformer：</strong>题名和我们的方向最接近，但摘要为空、没有可引用指标；只能作为“同类工作存在”的证据。</li>
+      <li><strong>FMCW Fourier SNN / spiking resonators：</strong>更偏前端/频域特征提取；可以作为片上 FFT/STFT 之后的第二级，但不是完整检测器。</li>
+    </ul>
+
+    <h3>2.3 雷达 SNN 的通用分类</h3>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:16%"><col style="width:28%"><col style="width:28%"><col style="width:28%"></colgroup>
+        <thead><tr><th>维度</th><th>选项</th><th>代表</th><th>对本项目</th></tr></thead>
+        <tbody>
+          <tr><td>输入</td><td>raw IQ / HRRP / range profile / TFG / 微多普勒</td><td>EMRFormer、RadarConf 2024、GRSL 2025 RSN</td><td>TFG（STFT 32×32）最匹配“频域简化”</td></tr>
+          <tr><td>骨干</td><td>MLP / 1D CNN / 2D ResNet / Transformer / SSM / U-Net</td><td>1D MLP、RSN、STT、P-SpikeSSM</td><td>2D 残差 spiking CNN</td></tr>
+          <tr><td>读出</td><td>spike count / 膜电位 / 全局 max / FC</td><td>RSN 膜电位；我们的 count margin（1D）与膜电位（2D）</td><td>膜电位 + PFA 阈值</td></tr>
+          <tr><td>PFA</td><td>验证集负样本分位数 / Neyman–Pearson / 固定阈值</td><td>RSN 的可控虚警</td><td>验证集负样本分位数，冻结后测测试集</td></tr>
+          <tr><td>硬件</td><td>GPU / 神经形态芯片 / FPGA</td><td>EMRFormer 的 KA200；我们的 7020</td><td>PL-only、100 MHz、64 lane</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">03</span>高效 SNN 模型：四条技术路线</h2>
+    <p>“更高效的 SNN”不是单一模型，而是四种思路：<strong>ANN→SNN 转换</strong>、<strong>直接训练</strong>、<strong>Transformer/SSM</strong>、<strong>U-Net/分割</strong>。下面把和我们相关的模型放在同一张表里，并给出 7020 适配判断。</p>
+
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:21%"><col style="width:15%"><col style="width:27%"><col style="width:15%"><col style="width:22%"></colgroup>
+        <thead><tr><th>模型 / 方向</th><th>年份 / 来源</th><th>核心机制</th><th>规模 / T</th><th>7020 适配 / 对本项目</th></tr></thead>
+        <tbody>
+          <tr><td><strong>QCFS</strong><br><span class="small muted">Optimal ANN-SNN Conversion…</span></td><td>ICLR 2022<br>arXiv:2303.04347</td><td>量化 clip-floor-shift 激活，让 ANN 与 IF 的放电率对齐；4 步即可</td><td>ResNet/VGG；T=4</td><td>理论最适合转换；但必须严格 per-layer λ、θ=λ、v0=θ/2、T=L。我们手写版 51%，不能当结论</td></tr>
+          <tr><td><strong>PASCAL</strong><br><span class="small muted">Precise and Efficient ANN-SNN Conversion…</span></td><td>TMLR 2025<br>arXiv:2505.01730</td><td>spike accumulation + adaptive layerwise activation；比 QCFS 更省时间步</td><td>ResNet-34 等；摘要称约 64× fewer steps</td><td>比 QCFS 更值得复现；同样需要官方 recipe</td></tr>
+          <tr><td><strong>SEW-ResNet</strong><br><span class="small muted">Deep Residual Learning in SNN</span></td><td>NeurIPS 2021<br>arXiv:2102.04159</td><td>spike-element-wise 残差；>100 层直接训练</td><td>深残差；T 常用 4–8</td><td><strong>我们的 2D RSN 用的就是这个思想</strong>；7020 可放小宽度版本</td></tr>
+          <tr><td><strong>Fast-SNN</strong></td><td>arXiv:2305.19868</td><td>量化 ANN 转换 + signed IF；低延迟</td><td>视觉任务；T 小</td><td>转换路线备选；需要官方实现</td></tr>
+          <tr><td><strong>QP-SNN</strong></td><td>arXiv:2502.05905</td><td>均匀量化 + 结构化剪枝 + 权重重缩放</td><td>边缘部署；压缩率高</td><td>对 4-bit/BRAM 友好；精度需验证</td></tr>
+          <tr><td><strong>Spikformer</strong></td><td>arXiv:2209.15425</td><td>spike self-attention，无 softmax/乘法</td><td>ImageNet；T 较大</td><td>7020 放不下完整版；只适合做轻量注意力头</td></tr>
+          <tr><td><strong>P-SpikeSSM</strong></td><td>ICLR 2025<br>arXiv:2406.02923</td><td>概率 spiking SSM；SpikeMixer/ClampFuse</td><td>~250k；长序列</td><td>8-bit 可放，但 causal scan 对 FPGA 不友好</td></tr>
+          <tr><td><strong>SpikCommander</strong></td><td>AAAI 2026<br>arXiv:2511.07883</td><td>全 spike transformer + 多视图</td><td>0.19M SHD 96.41%；T=100</td><td>T 太长，不适合 100 µs 级 PRI</td></tr>
+          <tr><td><strong>MRA-SNN</strong></td><td>arXiv:2408.11067</td><td>多尺度残差注意力；振动信号直接编码</td><td>1.75M；T=4；MFPT 94.57%</td><td>参数太大；但“1D 振动 + 多尺度”思路可借鉴</td></tr>
+          <tr><td><strong>gamma-ray SNN</strong></td><td>arXiv:2510.20997</td><td>EONS 进化稀疏 SNN；多元时间序列二分类</td><td>49 neurons / 66 synapses；2 mW；20.2 ms</td><td>最接近“1D 光谱二分类”的 edge SNN；任务不同</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.1 转换 vs 直接训练：我们踩过的坑</h3>
+    <div class="grid2">
+      <div class="callout note">
+        <strong>转换（QCFS/PASCAL/Fast-SNN）：</strong>训练 ANN 容易、精度上限高；但 SNN 的 λ、θ、初始膜电位、T 必须严格对齐，否则会出现“ANN 97%、SNN 51%”的断崖。我们手写 QCFS 原型就踩了这个坑。
+      </div>
+      <div class="callout note">
+        <strong>直接训练（BPTT + surrogate）：</strong>不需要对齐转换公式；但训练更不稳定、对 T/SEW/读出敏感。我们最终在 2D TFG 上用 SEW-ADD + 膜电位读出 + T=4 做到 99.72%，说明“直接训练 + 残差”是可行的。
+      </div>
+    </div>
+
+    <h3>3.2 为什么 2D RSN 比 1D MLP 强</h3>
+    <p>1D MLP 把 512 点 FFT 幅度谱压成向量，丢掉了“频率随时间怎么变”的结构；2D TFG 保留了 chirp 的斜线、杂波的条纹和多普勒的局部结构。对 LFM 回波，这是决定性的：同一套 28k 参数，2D 残差 SNN 能到 99.7%，1D 三层 MLP 只有 96.6%。这不是“网络更大”，而是<strong>输入表示更适合 2D 卷积</strong>。</p>
+
+    <h3>3.3 Spiking U-Net：为什么没继续</h3>
+    <p>Spiking U-Net 适合“输出干净 range profile / 做杂波抑制 / 目标定位”，需要 per-bin 掩码标签；当前任务是二元检测，TFG RSN 直接分类已经到 99.7%，没有必要引入 U-Net 的编码器-解码器和逐 bin 监督。U-Net 留作后续“杂波抑制/定位”的备选。</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">04</span>硬件：7020 上怎么把 SNN 跑起来</h2>
+    <h3>4.1 SNN 硬件的五个关键点</h3>
+    <ul>
+      <li><strong>无乘法器：</strong>输入是 0/1 spike，权重是 int8；乘加退化成“条件加”，DSP 可以几乎不用（我们的 2D 引擎只用了 2 个 DSP 做 FC）。</li>
+      <li><strong>膜电位是状态：</strong>每层每个神经元要存 24-bit 膜电位；2D 引擎 73,728 个神经元 → 48 BRAM，这是 BRAM 的主要开销。</li>
+      <li><strong>权重打包：</strong>每 32 个 int8 打成 256-bit 字，一次读一拍；1D 32-lane 引擎的 BRAM 深度/位宽权衡决定了 512 神经元/层的上限。</li>
+      <li><strong>脉冲稀疏性：</strong>理论上 event-driven 可以跳过零 spike；我们的 2D 引擎目前是 dense（每 tap 都算），event-driven 1.57 ms 仍是估算。</li>
+      <li><strong>流水：</strong>LIF/计数/FC 都要拆两级，否则 100 MHz 收不住；我们的 WNS 从 −3.268 收到 +0.070，靠的就是这些流水。</li>
+    </ul>
+
+    <h3>4.2 7020 约束与我们的三版 1D RTL</h3>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:22%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:14%"><col style="width:20%"></colgroup>
+        <thead><tr><th>版本</th><th>结构 / 突触</th><th>精度</th><th>PD / PFA</th><th>延迟</th><th>BRAM / 状态</th></tr></thead>
+        <tbody>
+          <tr><td>1D 8-bit 基线</td><td>512-512-512-2；525,312</td><td>96.75%</td><td>95.00 / 1.54</td><td>5.594 ms</td><td>128/140；bit-exact 8/8</td></tr>
+          <tr><td><strong>1D 8-bit 效率版</strong></td><td>512-256-128-2；164,096</td><td>96.64%</td><td>94.67 / 1.44</td><td><strong>1.772 ms</strong></td><td>36.5/140；bit-exact 8/8；推荐低延迟</td></tr>
+          <tr><td>1D 4-bit 容量版</td><td>512-704-704-2；857,472</td><td>96.50%</td><td>— / 2.48</td><td>4.755 ms</td><td>118.5/140；容量实验，不推荐</td></tr>
+          <tr><td>MF + 1D CNN + SNN 头</td><td>9,682 CNN + 2,112 SNN</td><td>97.94%</td><td>97.40 / 1.54</td><td>—</td><td>CNN 前端非 spiking；SNN 只做头</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>4.3 2D 时频 RSN：算法与 RTL</h3>
+    <p>算法：STFT 32×32 TFG（64 点 STFT，hop 16）→ 6 层 2D 残差 spiking CNN（SEW-ADD，BN，LIF，膜电位读出，direct BPTT），T=4，28,146 参数。float 99.72%，int8 99.62%。</p>
+    <p>RTL：一个 64-lane 通用 2D 卷积引擎，按层加载配置（Cin 1/16/32、Cout 16/32、stride 1/2、SEW 源、权重/偏置/膜电位基址）；3×3 三行 line buffer；一个 tap/cycle；int8 权重、24-bit 膜电位；全局 max + int8 FC 32→2。100 MHz 实现：WNS +0.070 ns、0 失败端点、0.584 W、9.01 ms/次。</p>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:22%"><col style="width:14%"><col style="width:18%"><col style="width:18%"><col style="width:28%"></colgroup>
+        <thead><tr><th>2D 版本</th><th>精度</th><th>PD / PFA</th><th>延迟</th><th>硬件</th></tr></thead>
+        <tbody>
+          <tr><td>2D ANN 上界</td><td>99.83%</td><td>—</td><td>—</td><td>28,146 参数</td></tr>
+          <tr><td><strong>2D float SNN</strong></td><td><strong>99.72%</strong></td><td>99.67 / 0.22</td><td>—</td><td>6 层全 spiking，T=4</td></tr>
+          <tr><td><strong>2D int8 参考</strong></td><td><strong>99.62%</strong></td><td>99.70 / 0.45</td><td>—</td><td>BN 折叠，24-bit 膜电位</td></tr>
+          <tr><td><strong>2D RTL（100 MHz）</strong></td><td>8/8 决策</td><td>—</td><td><strong>9.01 ms</strong></td><td>LUT 14,946 / FF 10,427 / BRAM 98 / 0.584 W</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>精确性：</strong>2D RTL 还不是 bit-exact：L1 t0 输出/膜电位 0 bit 差；L2–L5 计数差 &lt;0.2%，L6 约 0.8%，FC 分数差 &lt;4%；8/8 决策一致。跨 t 行缓冲还有 5 个字/43 bit 的边角差异，是后续收尾项。1D 三版 RTL 仍然是完全 bit-exact 的。
+    </div>
+
+    <h3>4.4 和文献硬件比，我们处在哪</h3>
+    <ul>
+      <li>公开的雷达 SNN 论文大多只报 GPU/神经形态芯片的“理论能耗/相对能耗”，没有 7020 级 FPGA 的 LUT/BRAM/时序；我们的 100 MHz 2D 引擎是少见的“可综合 + 8/8 决策 + 资源/功耗”的完整数据点。</li>
+      <li>PYNQ-Z2 QCSNN（2026）是少数 FPGA SNN 工作，但任务/网络不同；不能直接比精度。</li>
+      <li>神经形态 ADC + SNN（RadarConf 2024）解决的是采样前端；我们的 2D 引擎解决的是“拿到 TFG 之后”的检测骨干，两者可以组合。</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">05</span>讨论：什么有效，什么无效，下一步做什么</h2>
+    <div class="grid2">
+      <div>
+        <h3>5.1 有效的</h3>
+        <ul>
+          <li><strong>TFG + 2D 残差 spiking CNN：</strong>99.72% float / 99.62% int8；明显优于 1D MLP。</li>
+          <li><strong>SEW-ADD + 膜电位读出 + T=4：</strong>direct BPTT 稳定，PFA 可控。</li>
+          <li><strong>64-lane 通用 2D 引擎：</strong>100 MHz、8/8、BRAM 98/140、0.584 W；六层共享一套 MAC/LIF。</li>
+          <li><strong>1D 8-bit 256-128：</strong>1.77 ms、bit-exact，低延迟首选。</li>
+        </ul>
+      </div>
+      <div>
+        <h3>5.2 无效 / 不推荐</h3>
+        <ul>
+          <li><strong>4-bit 857k 大网络：</strong>96.50%、PFA 2.48%、4.755 ms；更大更慢，不推荐。</li>
+          <li><strong>朴素 QCFS 手写实现：</strong>约 51%；recipe 不对齐，不能当结论。</li>
+          <li><strong>混合方案：</strong>97.94%，但 SNN 只有 2,112 突触，不能算“SNN 主力”。</li>
+          <li><strong>Spiking U-Net：</strong>对二元检测没有必要；留给杂波抑制/定位。</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>5.3 研究空白</h3>
+    <ol>
+      <li><strong>没有公开的 7020 雷达 SNN 实现：</strong>文献要么算法 + GPU，要么神经形态芯片；缺少 LUT/BRAM/时序/功耗的完整可复现数据。</li>
+      <li><strong>真实数据缺口：</strong>我们的 99.72% 是合成 LFM + 杂波；IPIX/实测海杂波上的泛化还没验证。</li>
+      <li><strong>Event-driven 卷积：</strong>1.57 ms 是按平均脉冲率估算，尚未在 RTL 实现；dense 版 9.01 ms。</li>
+      <li><strong>2D bit-exact：</strong>跨 t 行缓冲还有 5 字/43 bit 差异；1D 已 bit-exact。</li>
+      <li><strong>100 MHz 余量：</strong>WNS +0.070 ns 很薄；换 P&R 可能掉负，需要 guardband/再流水。</li>
+    </ol>
+
+    <h3>5.4 按目标的建议</h3>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col style="width:22%"><col style="width:40%"><col style="width:38%"></colgroup>
+        <thead><tr><th>目标</th><th>选什么</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td>精度优先 / 老师看结果</td><td><strong>2D 时频 RSN</strong>（100 MHz RTL）</td><td>99.72% / 99.62%，8/8 决策，9.01 ms；SNN 做全部 6 层卷积</td></tr>
+          <tr><td>低延迟 / 实时</td><td><strong>1D 8-bit 256-128</strong></td><td>1.77 ms、bit-exact、BRAM 36.5；96.64%</td></tr>
+          <tr><td>容量实验</td><td>4-bit 857k</td><td>能放但更慢、PFA 更高；只作为“大网络”实验</td></tr>
+          <tr><td>研究 / 下一步</td><td>QCFS/PASCAL 官方 recipe + event-driven 2D 引擎</td><td>把 2D 从 9.01 ms 压到 ~1.6 ms；或做 spiking U-Net 杂波抑制</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">06</span>结论</h2>
+    <p class="lead">对“雷达回波有无目标 + 7020 + PL-only”这个任务，最值得讲的故事不是“我们把一个 MLP 塞进了 FPGA”，而是：<strong>时频图 + 2D 残差脉冲网络把纯 SNN 从 96.6% 推到 99.7%，并且真的做成了 100 MHz、8/8 决策、0.584 W 的 64-lane 2D 卷积引擎。</strong></p>
+    <p>文献侧，GRSL 2025 RSN 给了“TFG + 残差 spiking + 膜电位 PFA”的路线；我们把它在合成数据上复现到 99.7%，并补上了“7020 上怎么放、怎么流水、资源/时序/功耗是多少”这一块。1D 8-bit 256-128 仍然保留为低延迟/bit-exact 的基线；4-bit 大网络和混合方案作为对照，不推荐作为最终版本。</p>
+    <p>下一步优先级：<strong>（1）</strong>跨 t 行缓冲 bit-exact；<strong>（2）</strong>event-driven 2D 卷积（目标 ~1.6 ms）；<strong>（3）</strong>真实 IPIX/实测数据；<strong>（4）</strong>PL 上板与片上 STFT。100 MHz 已经收敛，但 WNS 余量很薄，上板前建议再做一轮 retiming/guardband。</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">07</span>参考文献与证据</h2>
+    <ol class="refs">
+      <li>Y. Jiao, Z.-Y. Wang, D.-W. Wang, S.-W. Xu, “Sea-Surface Small Target Detection Using Spiking Neural Network With Controllable False Alarm,” <em>IEEE GRSL</em>, 2025. DOI: 10.1109/LGRS.2025.3529956. <span class="tag warn">IEEE 闭源，摘要/元数据</span></li>
+      <li>S. Herath, M. R. Ziemann, K. T. Wagner, C. A. Metzler, “High-Resolution Range Profile Target Recognition with Neuromorphic ADCs and Spiking Neural Networks,” <em>IEEE RadarConf</em>, 2024. DOI: 10.1109/RadarConf2458775.2024.10549488. <span class="tag warn">闭源，摘要</span></li>
+      <li>H.-T. Zhang, Y. Zhou, X.-Y. Zheng, F. Luo, T.-W. Hou, A. Li, “Spiking Neural Network-Based Radar Human Activity Recognition,” <em>IJCNN</em>, 2026. DOI: 10.1109/IJCNN69854.2026.11729898. <span class="tag warn">闭源，摘要</span></li>
+      <li>Y.-M. Wang, W. Chen, X.-Y. Yang, Y.-B. Wang, G.-L. Cui, “TF-Spkformer: A Lightweight Time-Frequency Spiking Neural Network for Small-Target Detection in Sea Clutter,” <em>IEEE GRSL</em>, 2026. DOI: 10.1109/LGRS.2026.3753747. <span class="tag warn">摘要为空</span></li>
+      <li>X. Li, C. Qu, C. Lin, C. Dou, W. Hua, “End-to-End Radar and Communication Modulation Recognition with Neuromorphic Computing,” arXiv:2606.24075, 2026. <span class="tag good">全文 PDF</span></li>
+      <li>T. Bu, W. Fang, J. Ding, P. Dai, Z. Yu, T. Huang, “Optimal ANN-SNN Conversion for High-accuracy and Ultra-low-latency Spiking Neural Networks,” <em>ICLR</em>, 2022. arXiv:2303.04347. <span class="tag">QCFS</span></li>
+      <li>P. Ramesh, G. Srinivasan, “PASCAL: Precise and Efficient ANN-SNN Conversion using Spike Accumulation and Adaptive Layerwise Activation,” <em>TMLR</em>, 2025. arXiv:2505.01730.</li>
+      <li>W. Fang, Z. Yu, Y. Chen, T. Huang, T. Masquelier, Y. Tian, “Deep Residual Learning in Spiking Neural Networks,” <em>NeurIPS</em>, 2021. arXiv:2102.04159. <span class="tag">SEW-ResNet</span></li>
+      <li>Y. Hu, Q. Zheng, X. Jiang, G. Pan, “Fast-SNN: Fast Spiking Neural Network by Converting Quantized ANN,” arXiv:2305.19868.</li>
+      <li>W. Wei et al., “QP-SNN: Quantized and Pruned Spiking Neural Networks,” arXiv:2502.05905.</li>
+      <li>Z. Zhou et al., “Spikformer: When Spiking Neural Network Meets Transformer,” arXiv:2209.15425.</li>
+      <li>M. Bal, A. Sengupta, “P-SpikeSSM: Harnessing Probabilistic Spiking State Space Models for Long-Range Dependency Tasks,” arXiv:2406.02923.</li>
+      <li>J. Wang et al., “SpikCommander: A High-performance Spiking Transformer with Multi-view Learning for Efficient Speech Command Recognition,” arXiv:2511.07883.</li>
+      <li>L. Zuo et al., “Toward End-to-End Bearing Fault Diagnosis for Industrial Scenarios with Spiking Neural Networks,” arXiv:2408.11067. <span class="tag">MRA-SNN</span></li>
+      <li>J. Ghawaly et al., “Exploring Spiking Neural Networks for Binary Classification in Multivariate Time Series at the Edge,” arXiv:2510.20997. <span class="tag">gamma-ray / edge</span></li>
+      <li>FMCW radar Fourier SNN, DOI: 10.3389/fnbot.2021.688344. <span class="tag warn">仅题名/DOI 级参考</span></li>
+      <li>Spiking resonators, DOI: 10.1088/2634-4386/adcf46. <span class="tag warn">仅题名/DOI 级参考</span></li>
+      <li>PYNQ-Z2 QCSNN, DOI: 10.3390/s26123723. <span class="tag warn">仅题名/DOI 级参考</span></li>
+      <li>本项目技术报告（15 页）：<code>docs/report.html</code> / <code>docs/report.pdf</code>；源码与权重：<code>G:\python-G\snn</code>；GitHub: <code>https://github.com/pr1670407092/snn-radar-detector</code>。</li>
+      <li>本项目 1D 三版 RTL、4-bit 容量实验、MF+CNN+SNN 混合实验的数据与日志：<code>docs/metrics*.json</code>、<code>build/sim*/</code>、<code>weights*/</code>。</li>
+    </ol>
+    <div class="callout warn"><strong>引用说明：</strong>IEEE 的 4 篇雷达论文全文未开放，本报告只使用题名/作者/DOI/摘要；GRSL 2026 TF-Spkformer 摘要为空，只按题名做主题判断。EMRFormer 使用 arXiv 全文。高效 SNN 模型使用 arXiv/会议页的题名与摘要，未逐篇复现；表中的“7020 适配”是我们的工程判断，不是论文结论。</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">A</span>附录：检索式与本地证据</h2>
+    <h3>A.1 检索式（示例）</h3>
+    <pre class="small" style="background:#f6f9fb;border:1px solid var(--line);border-radius:8px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden">("spiking neural network" OR SNN) AND (radar OR "sea clutter" OR HRRP OR "time-frequency" OR "target detection")
+("ANN-SNN conversion" OR QCFS OR PASCAL OR "SEW-ResNet" OR "spiking transformer")
+("event-driven" OR "neuromorphic ADC") AND radar
+("FPGA" OR ZYNQ OR "edge") AND "spiking neural network"</pre>
+    <h3>A.2 本地证据文件</h3>
+    <ul class="small">
+      <li><code>papers/grsl2025_rsn.json</code>、<code>radarconf2024_hrrp.json</code>、<code>ijcnn2026_stt.json</code>、<code>grsl2026_tfspkformer.json</code>：Semantic Scholar 元数据/摘要。</li>
+      <li><code>papers/emrformer.pdf</code> / <code>emrformer.txt</code>：arXiv 全文。</li>
+      <li><code>docs/report.html</code> / <code>docs/report.pdf</code>：15 页技术报告（含 9.10 的 100 MHz RTL）。</li>
+      <li><code>docs/metrics_spiking_cnn2d.json</code>、<code>docs/sim2d_8.log</code>：2D 算法/RTL 指标与 8/8 日志。</li>
+      <li><code>weights2d/</code>、<code>hw2d/</code>、<code>rtl/conv2d_engine.v</code>、<code>rtl/snn2d_top.v</code>：2D RTL 权重/测试向量/源码。</li>
+    </ul>
+    <p class="metric-note">报告日期 2026-11-23；数据为合成 LFM 回波 + 杂波，非实测雷达数据。所有“本地”指标均来自本仓库脚本/仿真/综合，不是论文复现。</p>
+  </section>
+
+  <div class="footer">
+    SNN 雷达目标检测与高效模型调研报告 · 2026-11-23 · 配套技术报告 <code>docs/report.html</code> · 工程 <code>G:\python-G\snn</code>
+  </div>
+</div>
+</body>
+</html>
