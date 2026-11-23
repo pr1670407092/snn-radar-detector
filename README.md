@@ -224,7 +224,14 @@
 L6 约 0.8%。L1 t0 的输出图和膜电位 **0 bit 差**；跨 t 的 row-buffer 仍有
 5 个字/43 bit 的边角差异，尚未 bit-exact，这是下一步收尾项。
 
-**深度/宽度消融（2026-11-23）：** 8 层（+2 conv，46,706 参数）test **99.49%**；width=24（62,954 参数）val 99.85%、test **99.61%**（明显过拟合）；6 层 28,146 参数 test **99.72%**。结论：合成测试集已饱和，继续加层/加宽不涨点；下一步应做更难数据（低 SNR/低 CNR、海尖峰、失配、IPIX），而不是盲目堆 RTL 层数。LUT/FF 余量适合做 128-lane 提速，不是加层。
+**深度/宽度消融（2026-11-23）：**
+
+| 数据集 | 6 层 28k | 8 层 47k | width24 63k |
+|---|---|---|---|
+| 简单集（SNR −7…3，CNR 8…16） | **99.72%** | 99.49% | 99.61% |
+| 难集（SNR −10…0，CNR 8…18，K 杂波/尖峰/干扰/缺失/失配） | **76.89%**（AUC 0.8441） | 76.98%（0.8397） | 76.68%（0.8429） |
+
+难集 PFA 1e-2 时 PD：6L 46.7%、8L 46.1%、W24 48.0%。**加层/加宽在简单集和难集都没有明显收益**；简单集已饱和，难集才是真实瓶颈。下一步优先 T=8、特征/预处理、真实 IPIX，而不是继续堆 RTL 层数；LUT/FF 余量适合 128-lane 提速，不是加层。
 
 - 延迟：8 例仿真共 72.08 ms → 约 **9.01 ms/次 @100 MHz**（含特征写入、4 次编码、
   6 层 dense MAC、读出/FC）；dense MAC 理论 6.73 ms，事件驱动 1.57 ms 尚未实现。
@@ -573,7 +580,7 @@ models/     ann512_B.pt（基线）/ ann_256_128.pt（效率版）/ ann704_c.pt�
             cnn2d_tf.pt（2D 时频 ANN）/ spiking_cnn2d_tf.pt（2D 时频 SNN）
 python/     ... + train_cnn.py / convert_cnn_snn.py / extract_cnn_feat.py /
             tf_data.py / train_cnn2d.py / train_spiking_cnn2d.py / eval_spiking_cnn2d.py
-data/       radar512.npz / mf_cnn_feat.npz（32 维 CNN 特征）/ radar_tf.npz（32×32 时频图）
+data/       radar512.npz / mf_cnn_feat.npz / radar_tf.npz（简单集）/ radar_tf_hard.npz（难集）
 archive/    mf_mlp_experiment/radar_mf.npz（MF range profile 数据）
 ```
 

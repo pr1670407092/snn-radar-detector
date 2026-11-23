@@ -1,0 +1,20 @@
+SpikingCNN2D width=16 T=4 sew=1 readout=membrane extra=2 params=46706
+epoch   1: loss=0.7701 val=60.85% lr=9.99e-04 (6.2s)
+epoch   5: loss=0.5376 val=69.00% lr=9.83e-04 (30.1s)
+epoch  10: loss=0.5113 val=74.60% lr=9.33e-04 (59.9s)
+epoch  15: loss=0.5022 val=75.22% lr=8.54e-04 (89.6s)
+epoch  20: loss=0.4924 val=76.55% lr=7.50e-04 (119.3s)
+epoch  25: loss=0.4795 val=76.45% lr=6.29e-04 (149.2s)
+epoch  30: loss=0.4734 val=75.98% lr=5.00e-04 (179.0s)
+epoch  35: loss=0.4616 val=76.45% lr=3.71e-04 (208.8s)
+epoch  40: loss=0.4548 val=73.75% lr=2.50e-04 (238.5s)
+epoch  45: loss=0.4483 val=75.72% lr=1.46e-04 (268.5s)
+epoch  50: loss=0.4434 val=74.58% lr=6.70e-05 (298.3s)
+epoch  55: loss=0.4372 val=75.17% lr=1.70e-05 (322.3s)
+epoch  60: loss=0.4370 val=75.70% lr=0.00e+00 (340.2s)
+best val=77.08%  test=76.98%  params=46706
+score AUC test 0.8397
+target PFA=1e-02: test_PD=46.06% test_PFA=1.30%
+target PFA=5e-03: test_PD=40.82% test_PFA=0.63%
+target PFA=1e-03: test_PD=34.14% test_PFA=0.15%
+saved models/spiking_cnn2d_tf_hard_8.pt

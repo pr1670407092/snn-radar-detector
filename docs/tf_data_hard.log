@@ -1,0 +1,6 @@
+G:\python-G\snn\python\tf_data.py:10: UserWarning: Input data is complex, switching to return_onesided=False
+  _, _, Z = stft(rx, fs=FS, nperseg=64, noverlap=48, nfft=64,
+saved data/radar_tf_hard.npz
+  train: x=(24000, 32, 32) pos=0.498 snr=[-10.0,-0.0] cnr=[8.0,18.0]
+  val: x=(4000, 32, 32) pos=0.500 snr=[-10.0,-0.0] cnr=[8.0,18.0]
+  test: x=(8000, 32, 32) pos=0.501 snr=[-10.0,-0.0] cnr=[8.0,18.0]

@@ -880,7 +880,7 @@
       </div>
       <p><strong>仿真结论：</strong>8/8 决策与 Python 整数参考一致；L1 t0 的输出 spike 图（512 字）和膜电位（256 字）<strong>0 bit 差</strong>，说明编码器、Conv1、LIF/权重/偏置/膜电位写回都是对的。跨 t 的 row-buffer 仍有 5 个字/43 bit 的边角差异（L1 t1），导致 L2–L5 的计数差 &lt;0.2%、L6 约 0.8%，FC 分数差 &lt;4%；尚未 bit-exact，这是收尾项，不影响决策。</p>
       <div class="callout warn">
-        <strong>深度/宽度消融（2026-11-23）：</strong>8 层（46,706 参数）test <strong>99.49%</strong>；width=24（62,954 参数）val 99.85%、test <strong>99.61%</strong>（明显过拟合）；6 层（28,146 参数）test <strong>99.72%</strong>。结论：合成测试集已饱和，继续加层/加宽不涨点；LUT/FF 余量适合做 128-lane 提速，或用于更难数据（低 SNR/低 CNR、海尖峰、失配、IPIX），而不是盲目堆 RTL 层数。
+        <strong>深度/宽度消融（2026-11-23）：</strong>简单集 6L/8L/W24 = <strong>99.72/99.49/99.61%</strong>；难集（SNR −10…0、CNR 8…18、K 杂波/尖峰/干扰/缺失/失配）= <strong>76.89/76.98/76.68%</strong>（AUC 0.844/0.840/0.843；PFA 1e-2 时 PD 46.7/46.1/48.0%）。<strong>加层/加宽在简单集和难集都没有明显收益</strong>；简单集饱和，难集才是真实瓶颈。下一步优先 T=8、特征/预处理、真实 IPIX；LUT/FF 余量适合 128-lane 提速，不是堆层。
       </div>
       <div class="callout note">
         <strong>资源与时序（Vivado 2025.2，xc7z020clg400-2，OOC）：</strong>
