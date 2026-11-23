@@ -1,0 +1,7 @@
+{
+  "model": "8-bit 512-256-128 pure SNN + membrane readout",
+  "T": 16,
+  "auc_val": 0.6077715271527153,
+  "auc_test": 0.6229268441476843,
+  "count_acc": 0.966375
+}

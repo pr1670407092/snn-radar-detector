@@ -1,0 +1,24 @@
+{
+  "model": "1D residual spiking CNN + membrane readout",
+  "params": 9682,
+  "T": 8,
+  "accuracy": 0.9264,
+  "pfa_table": [
+    {
+      "target_pfa": 0.01,
+      "test_PD": 0.8044,
+      "test_PFA": 0.0099
+    },
+    {
+      "target_pfa": 0.005,
+      "test_PD": 0.7337,
+      "test_PFA": 0.0047
+    },
+    {
+      "target_pfa": 0.001,
+      "test_PD": 0.5275,
+      "test_PFA": 0.0007
+    }
+  ],
+  "note": "membrane readout on the pure 8-bit MLP is not transferable (AUC 0.62); count-margin PFA on 8-bit 256-128 is better"
+}

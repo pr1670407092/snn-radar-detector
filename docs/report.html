@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基于 ZYNQ-7020 的三层 SNN 雷达回波检测加速器 · 技术报告</title>
+<style>
+  :root{
+    --bg:#eef2f7; --card:#fff; --ink:#1b2733; --muted:#5b6b7c;
+    --primary:#174a7c; --primary2:#2a7fb8; --accent:#1f9d8b;
+    --warn:#d9822b; --danger:#c0392b; --line:#dce5ee; --soft:#f4f8fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif;
+       line-height:1.75;font-size:15px}
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 18px 60px}
+  .hero{background:linear-gradient(135deg,#123a5f 0%,#1f5f8b 55%,#1f9d8b 100%);
+        color:#fff;border-radius:18px;padding:34px 36px 30px;
+        box-shadow:0 18px 40px rgba(18,58,95,.22);position:relative;overflow:hidden}
+  .hero:after{content:"";position:absolute;right:-70px;top:-80px;width:280px;height:280px;
+              border-radius:50%;background:rgba(255,255,255,.08)}
+  .kicker{display:inline-block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+          opacity:.88;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:999px}
+  h1{font-size:30px;line-height:1.35;margin:16px 0 8px;font-weight:750;position:relative}
+  .sub{font-size:15px;opacity:.92;max-width:900px;position:relative}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:20px;font-size:13px;opacity:.94;position:relative}
+  .meta b{font-weight:650}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+           margin:-24px 18px 0;position:relative;z-index:2}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:14px;
+          padding:16px 18px;box-shadow:0 8px 22px rgba(20,40,60,.08)}
+  .metric .v{font-size:26px;font-weight:800;color:var(--primary);letter-spacing:.2px}
+  .metric .v small{font-size:13px;font-weight:500;color:var(--muted)}
+  .metric .l{font-size:12px;color:var(--muted);margin-top:3px}
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:26px 0 8px}
+  .toc a{background:var(--card);border:1px solid var(--line);border-radius:10px;
+         padding:10px 12px;color:var(--ink);text-decoration:none;font-size:13px;
+         display:flex;gap:8px;align-items:center;transition:.15s}
+  .toc a:hover{border-color:var(--primary2);color:var(--primary);transform:translateY(-1px)}
+  .toc .n{display:inline-flex;width:22px;height:22px;border-radius:6px;background:var(--soft);
+          color:var(--primary);align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+        padding:26px 30px;margin:18px 0;box-shadow:0 8px 26px rgba(20,40,60,.06)}
+  h2{font-size:21px;margin:0 0 8px;color:var(--primary);display:flex;align-items:center;
+     gap:10px;scroll-margin-top:20px}
+  h2 .num{display:inline-flex;width:30px;height:30px;border-radius:8px;
+          background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;
+          align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  h3{font-size:16px;margin:24px 0 8px;color:#25445f}
+  p{margin:8px 0}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .callout{border-left:4px solid var(--accent);background:#eef8f6;border-radius:10px;
+           padding:12px 16px;margin:14px 0}
+  .callout.warn{border-left-color:var(--warn);background:#fdf5ec}
+  .callout.note{border-left-color:var(--primary2);background:var(--soft)}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:var(--soft);color:#25445f;font-weight:650}
+  tbody tr:nth-child(even){background:#fbfdff}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .formula{background:#f7fafc;border:1px dashed #c9d8e6;border-radius:10px;
+           padding:12px 16px;margin:12px 0;font-family:Consolas,"Microsoft YaHei",monospace;
+           font-size:14px;line-height:1.95;overflow-x:auto}
+  .formula .lbl{color:var(--muted);font-family:"Segoe UI","Microsoft YaHei",sans-serif;
+                font-size:12px;letter-spacing:.05em}
+  code{font-family:Consolas,"JetBrains Mono",monospace;background:#f1f5f9;
+       border:1px solid #e2e8f0;border-radius:5px;padding:1px 5px;font-size:12.5px}
+  pre{background:#0f2233;color:#dbe9f5;border-radius:12px;padding:16px 18px;
+      font-size:12.5px;line-height:1.65;overflow-x:auto;border:1px solid #1d3a52}
+  pre .ok{color:#7ee2b8}
+  pre .dim{color:#8fa9bd}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .kv{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kv .k{font-size:12px;color:var(--muted)}
+  .kv .v{font-size:20px;font-weight:750;color:var(--primary);margin-top:2px}
+  .kv .v small{font-size:12px;color:var(--muted);font-weight:500}
+  .bars{display:flex;flex-direction:column;gap:12px;margin:12px 0}
+  .bar-row{display:grid;grid-template-columns:96px 1fr 180px;gap:10px;align-items:center}
+  .bar-label{font-size:13px;color:#33485c;font-weight:600}
+  .bar-track{height:14px;background:#e9f0f6;border-radius:999px;overflow:hidden;
+             border:1px solid #d8e4ee}
+  .bar-fill{height:100%;border-radius:999px;
+            background:linear-gradient(90deg,var(--primary2),var(--accent))}
+  .bar-fill.warn{background:linear-gradient(90deg,#e6a23c,#d9822b)}
+  .bar-fill.zero{background:#c9d4de}
+  .bar-val{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  .cm{width:100%;border-collapse:separate;border-spacing:6px;margin:8px 0}
+  .cm th{background:transparent;text-align:center;border:none;color:var(--muted);font-size:12px}
+  .cm td{text-align:center;border:none;border-radius:10px;padding:14px 10px;
+         font-size:18px;font-weight:750}
+  .cm .tn,.cm .tp{background:#e8f6f0;color:#146b52}
+  .cm .fp,.cm .fn{background:#fdecea;color:#a93226}
+  .cm .lab{font-size:12px;font-weight:500;display:block;color:inherit;opacity:.8;margin-top:2px}
+  .pill{display:inline-block;background:var(--soft);border:1px solid var(--line);
+        border-radius:999px;padding:2px 9px;font-size:12px;color:var(--primary);
+        margin:2px 4px 2px 0}
+  .footer{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+  .print-btn{position:fixed;right:24px;top:24px;background:var(--primary);color:#fff;
+             border:none;border-radius:999px;padding:10px 16px;font-size:13px;
+             cursor:pointer;box-shadow:0 8px 20px rgba(23,74,124,.25);z-index:9}
+  .print-btn:hover{background:#0f3a61}
+  details{background:var(--soft);border:1px solid var(--line);border-radius:12px;
+          padding:10px 14px;margin:12px 0}
+  summary{cursor:pointer;font-weight:650;color:var(--primary)}
+  .tips{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tip{background:linear-gradient(180deg,#f7fbff,#eef6fb);border:1px solid var(--line);
+       border-radius:12px;padding:14px 16px}
+  .tip b{color:var(--primary)}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:12px 0}
+  .flow-box{flex:1 1 150px;background:var(--soft);border:1px solid var(--line);
+            border-radius:10px;padding:10px 12px;font-size:13px;text-align:center}
+  .flow-box small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .flow-arrow{display:flex;align-items:center;color:var(--primary2);font-weight:800;font-size:18px}
+  @media (max-width:900px){
+    .metrics{grid-template-columns:1fr 1fr}.toc{grid-template-columns:1fr 1fr}
+    .grid2,.grid3,.tips{grid-template-columns:1fr}
+    .bar-row{grid-template-columns:78px 1fr 130px}
+  }
+  @media (max-width:560px){
+    .metrics{grid-template-columns:1fr}.toc{grid-template-columns:1fr}
+    .hero{padding:24px}h1{font-size:23px}
+  }
+  @media print{
+    @page{size:A4;margin:12mm}
+    body{background:#fff;font-size:11px;line-height:1.55}
+    .wrap{max-width:100%;padding:0}
+    .hero{padding:20px 22px;border-radius:8px;box-shadow:none}
+    .kicker{font-size:9px}
+    h1{font-size:21px;margin:10px 0 4px}
+    .sub{font-size:11.5px}
+    .meta{gap:4px 16px;margin-top:10px;font-size:10.5px}
+    .metrics{grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0 0}
+    .metric{padding:8px 10px;border-radius:8px;box-shadow:none}
+    .metric .v{font-size:18px}
+    .metric .l{font-size:9.5px}
+    .toc{grid-template-columns:repeat(3,1fr);gap:5px;margin:10px 0 0}
+    .toc a{padding:5px 7px;font-size:10px;border-radius:6px}
+    .toc .n{width:16px;height:16px;font-size:9px;border-radius:4px}
+    .card{padding:14px 16px;margin:9px 0;border-radius:8px;box-shadow:none;
+          border:1px solid #d0d7de;page-break-inside:auto}
+    h2{font-size:16px;margin:0 0 4px;page-break-after:avoid}
+    h2 .num{width:22px;height:22px;font-size:10px;border-radius:5px}
+    h3{font-size:12.5px;margin:12px 0 4px;page-break-after:avoid}
+    p{margin:4px 0}
+    .callout{padding:7px 10px;margin:7px 0;border-radius:6px}
+    table{font-size:10.5px;margin:6px 0}
+    th,td{padding:5px 6px}
+    .formula{padding:7px 10px;margin:7px 0;font-size:11px;line-height:1.65}
+    .grid2{grid-template-columns:1fr 1fr;gap:8px}
+    .grid3{grid-template-columns:repeat(3,1fr);gap:8px}
+    .tips{grid-template-columns:repeat(3,1fr);gap:6px;page-break-inside:avoid}
+    .kv{padding:8px 10px;border-radius:8px}
+    .kv .v{font-size:15px}
+    .bars{gap:6px;margin:6px 0}
+    .bar-row{grid-template-columns:80px 1fr 150px;gap:6px}
+    .bar-track{height:10px}
+    .bar-label,.bar-val{font-size:10px}
+    .cm td{padding:8px 6px;font-size:14px}
+    .flow{gap:4px;margin:6px 0}
+    .flow-box{padding:6px 8px;font-size:10.5px}
+    .tip{padding:8px 10px}
+    details{padding:6px 10px;margin:6px 0}
+    pre{font-size:9.5px;padding:10px 12px;line-height:1.5}
+    .footer{margin-top:10px;font-size:9px}
+    .print-btn,.no-print{display:none!important}
+    a{color:#000;text-decoration:none}
+    table,.formula,pre{page-break-inside:avoid}
+    table.long-table{page-break-inside:auto}
+    table.long-table tr{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">打印 / 导出 PDF</button>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="kicker">课程设计 · 技术报告</span>
+    <h1>基于 ZYNQ-7020 的三层脉冲神经网络<br>雷达回波检测加速器</h1>
+    <p class="sub">512 → 512 → 512 → 2 的 8-bit 基线（525k 突触）+ 512 → 256 → 128 → 2 的 8-bit 效率版（164k 突触，1.77 ms）+ 512 → 704 → 704 → 2 的 4-bit 容量版（857k 突触）；面向雷达回波“有/无目标”二分类，使用 512 点 FFT 幅度谱作为频域特征。RTL 与 Python 整数模型逐计数一致。</p>
+    <div class="meta">
+      <span>姓名：<b>____________</b></span>
+      <span>学号：<b>____________</b></span>
+      <span>指导教师：<b>____________</b></span>
+      <span>日期：<b>2026-11-23</b></span>
+      <span>器件：<b>XC7Z020-2CLG400（正点原子领航者 7020）</b></span>
+    </div>
+  </header>
+
+  <section class="metrics">
+    <div class="metric"><div class="v">96.75<small>%</small></div><div class="l">SNN 测试集精度（8,000 例）</div></div>
+    <div class="metric"><div class="v">95.00<small>%</small></div><div class="l">检测率 PD（虚警率 1.54%）</div></div>
+    <div class="metric"><div class="v">5.59<small> ms</small></div><div class="l">单次推理延迟 @ 50 MHz</div></div>
+    <div class="metric"><div class="v">128<small> / 140</small></div><div class="l">BRAM 使用（91.43%）</div></div>
+  </section>
+
+  <div class="callout note" style="margin:14px 18px 0">
+    <strong>效率版（推荐）：</strong>8-bit 512→256→128→2（164,096 突触，31%），SNN 96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，88,610 cycles（1.77 ms @50 MHz），BRAM 36.5/140，WNS +3.254 ns。4-bit 大网络（857k）是容量实验，PFA 2.48%，不如 8-bit 基线；详见 9.5。
+  </div>
+  <div class="callout warn" style="margin:8px 18px 0">
+    <strong>混合试验（9.7）：</strong>MF + 1D CNN（9,682 参数，98.01%）+ 32-32-2 SNN 头（2,112 突触，97.94%，T=32，PD 97.40% / PFA 1.54% / AUC 0.9960）。纯 spiking CNN 的朴素 rate 转换仅 85.04%；9.9 的 2D 时频 RSN 用 direct BPTT 做到 99.72%，是新的纯 SNN 最佳。混合方案的 CNN 前端不是 spiking。
+  </div>
+  <div class="callout" style="margin:8px 18px 0">
+    <strong>时频 RSN（最新，9.9）：</strong>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，6 层卷积全部 spiking，测试 <strong>99.72%</strong>，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。2D 卷积引擎尚未 RTL；64 lane/100 MHz 事件驱动估算约 1.57 ms。
+  </div>
+
+  <nav class="toc">
+    <a href="#s1"><span class="n">1</span>任务与问题定义</a>
+    <a href="#s2"><span class="n">2</span>系统总体方案</a>
+    <a href="#s3"><span class="n">3</span>数据集与特征</a>
+    <a href="#s4"><span class="n">4</span>网络与 SNN 转换</a>
+    <a href="#s5"><span class="n">5</span>硬件架构与资源</a>
+    <a href="#s6"><span class="n">6</span>位精确验证</a>
+    <a href="#s7"><span class="n">7</span>实验结果</a>
+    <a href="#s8"><span class="n">8</span>讨论与局限</a>
+    <a href="#s9"><span class="n">9</span>下一步与结论</a>
+    <a href="#sa"><span class="n">A</span>复现与附录</a>
+  </nav>
+
+  <main>
+    <section class="card" id="s1">
+      <h2><span class="num">1</span>任务与问题定义</h2>
+      <p>本工作的任务是<strong>雷达回波目标检测</strong>：给一帧接收到的雷达回波，判断其中是否存在目标反射，即输出“有目标 / 无目标”的二元决策。它不是目标分类，也不是测距或测速。</p>
+
+      <h3>1.1 二元假设检验</h3>
+      <div class="formula">
+        <div class="lbl">发射信号（复基带 LFM chirp）</div>
+        s(t) = exp(jπKt²),&nbsp; 0 ≤ t ≤ T<sub>p</sub>,&nbsp; K = B/T<sub>p</sub><br>
+        <div class="lbl" style="margin-top:8px">接收回波</div>
+        H<sub>0</sub>（无目标）：r(t) = c(t) + n(t)<br>
+        H<sub>1</sub>（有目标）：r(t) = A·s(t−τ)·exp(j2πf<sub>d</sub>t + jφ) + c(t) + n(t)<br>
+        <div class="lbl" style="margin-top:8px">物理量</div>
+        τ = 2R/c&nbsp;（目标距离）&nbsp;&nbsp; f<sub>d</sub> = 2v/λ&nbsp;（目标径向速度）
+      </div>
+      <p>其中 A 为回波幅度，τ 为往返延迟，f<sub>d</sub> 为多普勒频移，φ 为随机相位，c(t) 为杂波，n(t) 为噪声。标签 y=1 表示 H<sub>1</sub>，y=0 表示 H<sub>0</sub>。</p>
+
+      <h3>1.2 检测到的是什么</h3>
+      <p>检测到的对象是<strong>一个反射目标</strong>（飞机、无人机、车辆、舰船等都可能），但本任务不区分类型。目标参数在数据中是随机的，网络必须对距离/速度不敏感，只学习“回波是否存在”的谱特征。</p>
+      <table>
+        <thead><tr><th>层次</th><th>回答的问题</th><th>本工作</th></tr></thead>
+        <tbody>
+          <tr><td>检测</td><td>有没有目标？</td><td><span class="pill">是</span></td></tr>
+          <tr><td>测距/测速</td><td>目标在哪、速度多少？</td><td>不做</td></tr>
+          <tr><td>跟踪</td><td>目标轨迹如何？</td><td>不做</td></tr>
+          <tr><td>识别</td><td>目标是什么类型？</td><td>不做</td></tr>
+        </tbody>
+      </table>
+
+      <h3>1.3 时域与频域</h3>
+      <p>标准雷达检测使用<strong>时域匹配滤波</strong>：</p>
+      <div class="formula">y(τ) = ∫ r(t)·s*(t−τ) dt</div>
+      <p>如果存在目标回波，相关输出会在目标延迟处出现尖峰，超过门限即判为“有目标”。LFM 的匹配滤波也可以在频域实现：<code>Y(f)=R(f)·S*(f)</code>，再 IFFT 得到距离像。</p>
+      <div class="callout note">
+        <strong>本工作的简化：</strong>按题目允许，仅使用接收信号的 <strong>FFT 幅度谱</strong>作为 SNN 输入。幅度谱丢弃了相位，因此不做相干积累、不能直接测距/测速；但它保留了目标回波在 LFM 频带上的谱形，足以做“有无目标”的检测。这是有意为之的硬件友好简化。
+      </div>
+    </section>
+
+    <section class="card" id="s2">
+      <h2><span class="num">2</span>系统总体方案</h2>
+      <p>系统分为“特征提取（离线/片上 FFT）”和“SNN 推理（PL）”两部分。RTL 从 512 字节的 uint8 特征开始，完成三层 SNN 推理并输出脉冲计数与判决。</p>
+
+      <svg viewBox="0 0 1000 310" width="100%" role="img" aria-label="系统数据流图" style="margin:8px 0 4px">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#2a7fb8"/>
+          </marker>
+          <style>
+            .bx{fill:#f4f8fc;stroke:#174a7c;stroke-width:1.3}
+            .bx2{fill:#eef8f6;stroke:#1f9d8b;stroke-width:1.3}
+            .bx3{fill:#fff6ec;stroke:#d9822b;stroke-width:1.3}
+            .tx{font-family:'Segoe UI','Microsoft YaHei',sans-serif;font-size:13px;fill:#1b2733;text-anchor:middle}
+            .txs{font-family:'Segoe UI','Microsoft YaHei',sans-serif;font-size:11.5px;fill:#5b6b7c;text-anchor:middle}
+            .ln{stroke:#2a7fb8;stroke-width:1.6;fill:none;marker-end:url(#ar)}
+            .cap{font-family:'Segoe UI','Microsoft YaHei',sans-serif;font-size:11.5px;fill:#5b6b7c}
+          </style>
+        </defs>
+
+        <!-- row 1 -->
+        <rect class="bx" x="20" y="30" width="140" height="70" rx="10"/>
+        <text class="tx" x="90" y="58">雷达回波</text>
+        <text class="txs" x="90" y="77">512 点复基带</text>
+
+        <line class="ln" x1="160" y1="65" x2="185" y2="65"/>
+        <rect class="bx" x="190" y="30" width="120" height="70" rx="10"/>
+        <text class="tx" x="250" y="58">512 点 FFT</text>
+        <text class="txs" x="250" y="77">全 512 bin</text>
+
+        <line class="ln" x1="310" y1="65" x2="335" y2="65"/>
+        <rect class="bx" x="340" y="30" width="160" height="70" rx="10"/>
+        <text class="tx" x="420" y="58">log + 鲁棒归一化</text>
+        <text class="txs" x="420" y="77">median / MAD</text>
+
+        <line class="ln" x1="500" y1="65" x2="525" y2="65"/>
+        <rect class="bx" x="530" y="30" width="130" height="70" rx="10"/>
+        <text class="tx" x="595" y="58">uint8 特征</text>
+        <text class="txs" x="595" y="77">512 字节</text>
+
+        <line class="ln" x1="660" y1="65" x2="685" y2="65"/>
+        <rect class="bx" x="690" y="30" width="150" height="70" rx="10"/>
+        <text class="tx" x="765" y="58">σ-Δ 速率编码</text>
+        <text class="txs" x="765" y="77">T = 16</text>
+
+        <line class="ln" x1="840" y1="65" x2="865" y2="65"/>
+        <rect class="bx" x="870" y="30" width="110" height="70" rx="10"/>
+        <text class="tx" x="925" y="58">512-bit</text>
+        <text class="txs" x="925" y="77">脉冲向量</text>
+
+        <!-- row 2 -->
+        <path class="ln" d="M925,100 C925,150 900,165 850,165 L170,165 C145,165 140,172 140,190"/>
+        <rect class="bx2" x="40" y="190" width="200" height="80" rx="10"/>
+        <text class="tx" x="140" y="219">L1：512 LIF</text>
+        <text class="txs" x="140" y="239">W1 512×512 int8</text>
+
+        <line class="ln" x1="240" y1="230" x2="270" y2="230"/>
+        <rect class="bx2" x="280" y="190" width="200" height="80" rx="10"/>
+        <text class="tx" x="380" y="219">L2：512 LIF</text>
+        <text class="txs" x="380" y="239">W2 512×512 int8</text>
+
+        <line class="ln" x1="480" y1="230" x2="510" y2="230"/>
+        <rect class="bx2" x="520" y="190" width="180" height="80" rx="10"/>
+        <text class="tx" x="610" y="219">L3：2 LIF</text>
+        <text class="txs" x="610" y="239">W3 2×512 int8</text>
+
+        <line class="ln" x1="700" y1="230" x2="730" y2="230"/>
+        <rect class="bx3" x="740" y="190" width="220" height="80" rx="10"/>
+        <text class="tx" x="850" y="219">16 步脉冲计数</text>
+        <text class="txs" x="850" y="239">argmax → 有 / 无目标</text>
+
+        <text class="cap" x="500" y="296" text-anchor="middle">数据流：特征提取离线完成，上板可放 PL；PL 内 32 路突触并行、int8 权重、无乘法器</text>
+      </svg>
+
+      <div class="grid3">
+        <div class="kv"><div class="k">网络规模</div><div class="v">512–512–512–2</div></div>
+        <div class="kv"><div class="k">突触数</div><div class="v">525,312 <small>int8</small></div></div>
+        <div class="kv"><div class="k">时间步</div><div class="v">T = 16</div></div>
+        <div class="kv"><div class="k">并行度</div><div class="v">32 <small>synapses/cycle</small></div></div>
+        <div class="kv"><div class="k">膜电位</div><div class="v">24 <small>bit signed</small></div></div>
+        <div class="kv"><div class="k">目标时钟</div><div class="v">50 <small>MHz</small></div></div>
+      </div>
+      <p class="small muted">选择 512-512-512-2 的原因见 5.3：它是在 int8 权重、256-bit 权重字、32-lane 组织下，7020 的 140 个 BRAM 内接近上限的最大网络。</p>
+    </section>
+
+    <section class="card" id="s3">
+      <h2><span class="num">3</span>数据集与特征</h2>
+      <p>目前使用<strong>合成雷达回波数据</strong>，用于验证算法与硬件链路；不是实测雷达数据。生成器为 <code>python/radar_data.py</code>，数据文件为 <code>data/radar512.npz</code>。</p>
+
+      <h3>3.1 数据参数</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>参数</th><th>取值</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>采样率 f<sub>s</sub></td><td>50 MHz</td><td>复基带采样</td></tr>
+            <tr><td>脉冲长度 N</td><td>512</td><td>10.24 µs</td></tr>
+            <tr><td>LFM 带宽 B</td><td>20 MHz</td><td>chirp 占据 0–20 MHz</td></tr>
+            <tr><td>目标延迟 τ</td><td>0–160 samples</td><td>随机距离</td></tr>
+            <tr><td>多普勒 f<sub>d</sub></td><td>±80 kHz</td><td>随机径向速度</td></tr>
+            <tr><td>目标 SNR</td><td>−7–3 dB</td><td>低 SNR 是主要难点</td></tr>
+            <tr><td>杂波 CNR</td><td>8–16 dB</td><td>低频 AR(1) + 3 个慢正弦</td></tr>
+            <tr><td>数据划分</td><td>24k / 4k / 8k</td><td>训练 / 验证 / 测试，类别均衡</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.2 频域特征</h3>
+      <div class="formula">
+        X[k] = FFT(r[n]),&nbsp; k = 0…511<br>
+        P[k] = 10·log<sub>10</sub>(|X[k]|² + 1e−12)<br>
+        z[k] = clip((P[k] − median(P)) / (1.4826·MAD(P)), −3, +3)<br>
+        q[k] = round(255 · (z[k] + 3) / 6) ∈ [0,255]
+      </div>
+      <p>每个样本做<strong>逐样本鲁棒归一化</strong>，去掉绝对能量。这样网络不能只靠“总能量大”判别，必须利用<strong>谱形</strong>：目标回波抬高 LFM 频带，杂波集中在低频，噪声是白的。</p>
+      <div class="callout">
+        <strong>为什么用全 512 bin：</strong>复基带的正/负频率都保留，负频率半谱提供额外的噪声/杂波参考。相比只用 256 个正频率 bin，测试精度从约 92.8% 提升到 96.7%。
+      </div>
+    </section>
+
+    <section class="card" id="s4">
+      <h2><span class="num">4</span>网络与 SNN 转换</h2>
+
+      <h3>4.1 ANN 结构</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>层</th><th>输入</th><th>输出</th><th>激活</th></tr></thead>
+          <tbody>
+            <tr><td>FC1</td><td>512</td><td>512</td><td>ReLU</td></tr>
+            <tr><td>FC2</td><td>512</td><td>512</td><td>ReLU</td></tr>
+            <tr><td>FC3</td><td>512</td><td>2</td><td>线性（转换时加常数偏移）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>训练配置：AdamW，lr 1e-3，cosine，120 epochs，batch 256；dropout 0.2、weight decay 1e-2、输入高斯噪声 σ=0.03、label smoothing 0.05。ANN 测试精度 <strong>96.71%</strong>。</p>
+
+      <h3>4.2 ANN → 整数 SNN</h3>
+      <p>采用 rate coding + IF/LIF 软复位，逐层权重缩放。对每层在 2,000 个校准样本上取激活的 <strong>99.0 百分位</strong> 作为 λ：</p>
+      <div class="formula">
+        W′<sub>l</sub> = W<sub>l</sub> · λ<sub>l−1</sub> / λ<sub>l</sub>,&nbsp;&nbsp; b′<sub>l</sub> = b<sub>l</sub> / λ<sub>l</sub><br>
+        K<sub>l</sub> = floor(127 / max|W′<sub>l</sub>|)<br>
+        W<sub>q</sub> = clip(round(W′<sub>l</sub> · K<sub>l</sub>), −127, 127),&nbsp;&nbsp; b<sub>q</sub> = round(b′<sub>l</sub> · K<sub>l</sub>)<br>
+        θ<sub>l</sub> = K<sub>l</sub>&nbsp;（整数阈值）
+      </div>
+      <p>输出层两个 logit 加同一常数 C=2.487（argmax 不变），再做 λ<sub>3</sub> 缩放；第一层额外乘 256/255，补偿编码器速率 q/256 与 ANN 输入 q/255 的差异。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>层</th><th>fan-in</th><th>神经元</th><th>λ</th><th>θ = K</th></tr></thead>
+          <tbody>
+            <tr><td>L1</td><td>512</td><td>512</td><td class="num">0.3589</td><td class="num">316</td></tr>
+            <tr><td>L2</td><td>512</td><td>512</td><td class="num">0.3391</td><td class="num">289</td></tr>
+            <tr><td>L3</td><td>512</td><td>2</td><td class="num">4.5529</td><td class="num">3571</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>4.3 时间步选择</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>T</th><th class="num">8</th><th class="num">16</th><th class="num">32</th><th class="num">64</th></tr></thead>
+          <tbody>
+            <tr><td>SNN 精度</td><td class="num">96.28%</td><td class="num"><strong>96.75%</strong></td><td class="num">96.78%</td><td class="num">96.79%</td></tr>
+            <tr><td>相对延迟</td><td class="num">0.5×</td><td class="num"><strong>1×</strong></td><td class="num">2×</td><td class="num">4×</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>T=16 与 T=32 精度几乎相同，但延迟减半，因此硬件取 <strong>T=16</strong>。</p>
+
+      <div class="grid2">
+        <div class="kv"><div class="k">ANN 测试精度</div><div class="v">96.71%</div></div>
+        <div class="kv"><div class="k">SNN 测试精度（T=16）</div><div class="v">96.75%</div></div>
+      </div>
+      <p class="small muted">转换后精度与 ANN 基本持平，说明 int8 量化 + 16 步 rate coding 没有明显损失。</p>
+    </section>
+
+    <section class="card" id="s5">
+      <h2><span class="num">5</span>硬件架构与资源</h2>
+
+      <h3>5.1 高效 SNN 单元</h3>
+      <p>每层是一个 32-lane 的突触处理单元：一个 256-bit 权重字包含 32 个 int8，每个 lane 做条件加，再走 5 级 16-bit 加法树。</p>
+      <div class="flow">
+        <div class="flow-box">256-bit 权重字<small>32 × int8</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">32 路条件加<small>spike ? w : 0</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">5 级加法树<small>16-bit signed</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">acc 累加<small>24-bit</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">S_UPDATE<small>V 更新 / 阈值 / 软复位</small></div>
+      </div>
+      <ul class="small">
+        <li><strong>无乘法器：</strong>脉冲是 0/1，突触操作退化为条件加；整颗设计 DSP = 0。</li>
+        <li><strong>int8 权重 + 24-bit 有符号膜电位/偏置/阈值；</strong>软复位：V ≥ θ 时 V ← V − θ。</li>
+        <li><strong>膜电位存 BRAM/LUTRAM，</strong>避免 512 路 24-bit 读 mux 占用大量 LUT。</li>
+        <li><strong>权重/偏置/膜电位预取：</strong>地址组合驱动，读延迟 1 cycle，逐 chunk 流水。</li>
+        <li><strong>S_UPDATE 流水级：</strong>把“加法树 + 累加”和“膜电位更新 + 比较”分到两个 cycle，50 MHz 下数据通路关键路径从约 19.6 ns 降到约 15.8 ns。</li>
+        <li><strong>编码器控制寄存器复制：</strong>512×9 个 sigma-delta 累加器的 clear/tick 扇出很大，改用寄存器驱动并加 <code>max_fanout</code> 约束。</li>
+      </ul>
+
+      <h3>5.2 存储格式</h3>
+      <p>权重行优先、每 32 个输入一个 256-bit 字：</p>
+      <div class="formula">word_addr = dest_neuron · (FANIN/32) + chunk</div>
+      <p>lane 0 在 bit [7:0]，lane 31 在 bit [255:248]；偏置每行 24-bit 补码；膜电位在推理开始时用写端口扫 0 清空。</p>
+
+      <h3>5.3 为什么是 512-512-512-2</h3>
+      <p>BRAM 的深度会落到不同原语模式，256-bit 宽所需 BRAM 数会跳变：</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>每层字数</th><th>深度模式</th><th class="num">256-bit 宽所需 BRAM</th></tr></thead>
+          <tbody>
+            <tr><td>4,096</td><td>4K×9</td><td class="num">32</td></tr>
+            <tr><td><strong>8,192</strong></td><td><strong>8K×4</strong></td><td class="num"><strong>64</strong></td></tr>
+            <tr><td>11,264</td><td>16K×2</td><td class="num">128</td></tr>
+            <tr><td>16,384</td><td>16K×2</td><td class="num">128</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>512 个隐藏神经元、fan-in 512 时，一层正好 <strong>512×16 = 8,192 字 → 64 个 RAMB36</strong>。最终实现 L1 用 64 个 RAMB36、L2 用 63 个 RAMB36，加 2 个 RAMB18 的膜电位，合计 <strong>128/140 个 BRAM tile</strong>。若第二层改成 704 神经元，一层就变成 11,264 字 → 128 个 BRAM，两层放不下。</p>
+      <div class="callout note">因此 512-512-512-2 是在“int8 权重 + 256-bit 字 + 32 lane”组织下接近 BRAM 上限的最大网络。要再大，需要 4-bit 权重、权重压缩或稀疏化。</div>
+
+      <h3>5.4 资源与时序</h3>
+      <div class="bars">
+        <div class="bar-row"><div class="bar-label">LUT</div><div class="bar-track"><div class="bar-fill" style="width:23.94%"></div></div><div class="bar-val">12,735 / 53,200 · 23.94%</div></div>
+        <div class="bar-row"><div class="bar-label">FF</div><div class="bar-track"><div class="bar-fill" style="width:11.89%"></div></div><div class="bar-val">12,650 / 106,400 · 11.89%</div></div>
+        <div class="bar-row"><div class="bar-label">BRAM</div><div class="bar-track"><div class="bar-fill warn" style="width:91.43%"></div></div><div class="bar-val">128 / 140 · 91.43%</div></div>
+        <div class="bar-row"><div class="bar-label">DSP</div><div class="bar-track"><div class="bar-fill zero" style="width:0%"></div></div><div class="bar-val">0 / 220 · 0%</div></div>
+      </div>
+      <div class="grid3">
+        <div class="kv"><div class="k">时钟约束</div><div class="v">50 <small>MHz / 20 ns</small></div></div>
+        <div class="kv"><div class="k">WNS</div><div class="v">+2.853 <small>ns</small></div></div>
+        <div class="kv"><div class="k">WHS</div><div class="v">+0.106 <small>ns</small></div></div>
+      </div>
+      <p class="small muted">Vivado 2025.2，<code>xc7z020clg400-2</code>，out-of-context 实现。最差 setup 路径约 17.03 ns，主要是编码器 tick 复制寄存器的控制分发；数据通路约 15.8 ns。100 MHz 需要进一步流水。</p>
+
+      <h3>5.5 延迟与吞吐</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>指标</th><th class="num">数值</th><th>计算</th></tr></thead>
+          <tbody>
+            <tr><td>每层每行</td><td class="num">17 cycles</td><td>1 LOAD + 15 chunk + 1 UPDATE</td></tr>
+            <tr><td>每时间步</td><td class="num">≈17.4k cycles</td><td>512×17 + 512×17 + 2×17 + 握手</td></tr>
+            <tr><td>单次推理</td><td class="num">279,714 cycles</td><td>16 时间步 + 清空扫描</td></tr>
+            <tr><td>延迟 @ 50 MHz</td><td class="num">5.594 ms</td><td>279,714 × 20 ns</td></tr>
+            <tr><td>吞吐</td><td class="num">178.8 次/s</td><td>50 MHz / 279,714</td></tr>
+            <tr><td>突触吞吐</td><td class="num">≈1.50 G/s</td><td>525,312 × 16 / 5.594 ms</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">峰值 32 lane × 50 MHz = 1.6 G 突触操作/s，实际达到约 94%。</p>
+    </section>
+
+    <section class="card" id="s6">
+      <h2><span class="num">6</span>位精确验证</h2>
+      <p>验证不是只看“判决差不多”，而是让 RTL 与 Python 整数模型<strong>逐计数完全一致</strong>。</p>
+      <ul>
+        <li><code>python/convert_snn.py:encode()</code> 与 <code>rate_encoder.v</code> 使用相同的 sigma-delta 更新和初始相位 <code>(k·73)&amp;255</code>。</li>
+        <li><code>lif_run()</code> 与 RTL 使用相同的更新顺序：泄漏 → 加偏置/突触电流 → 24-bit 饱和 → 阈值比较 → 软复位。</li>
+        <li>testbench 加载 8 个测试样本，将 <code>count0 / count1 / decision</code> 与 <code>weights/hw_expected.mem</code> 逐项比较。</li>
+      </ul>
+      <pre><span class="dim">=== SNN hardware simulation: 8 cases, T=16 ===</span>
+<span class="ok">CASE 0 PASS: decision=0 count0=15 count1=2 cycles=279714</span>
+<span class="ok">CASE 1 PASS: decision=0 count0=14 count1=3 cycles=279714</span>
+<span class="ok">CASE 2 PASS: decision=0 count0=14 count1=3 cycles=279714</span>
+<span class="ok">CASE 3 PASS: decision=0 count0=13 count1=4 cycles=279714</span>
+<span class="ok">CASE 4 PASS: decision=1 count0=2 count1=14 cycles=279714</span>
+<span class="ok">CASE 5 PASS: decision=1 count0=3 count1=14 cycles=279714</span>
+<span class="ok">CASE 6 PASS: decision=1 count0=3 count1=13 cycles=279714</span>
+<span class="ok">CASE 7 PASS: decision=1 count0=3 count1=13 cycles=279714</span>
+<span class="ok">=== RESULT: PASS (8/8 cases) ===</span></pre>
+      <p>8 个用例覆盖 SNR −5.6…+2.7 dB、两类、不同置信度（计数差 9–13）。硬件计数与 Python 全等，说明权重打包、地址映射、编码器、LIF 更新、计数/判决全部位精确。</p>
+      <p class="small muted">完整日志：<code>build/sim/sim_final.log</code>。</p>
+    </section>
+
+    <section class="card" id="s7">
+      <h2><span class="num">7</span>实验结果</h2>
+
+      <h3>7.1 检测指标</h3>
+      <div class="grid3">
+        <div class="kv"><div class="k">SNN 测试精度</div><div class="v">96.75%</div></div>
+        <div class="kv"><div class="k">检测率 PD</div><div class="v">95.00%</div></div>
+        <div class="kv"><div class="k">虚警率 PFA</div><div class="v">1.54%</div></div>
+        <div class="kv"><div class="k">AUC</div><div class="v">0.9931</div></div>
+        <div class="kv"><div class="k">测试样本</div><div class="v">8,000</div></div>
+        <div class="kv"><div class="k">ANN 精度</div><div class="v">96.71%</div></div>
+      </div>
+
+      <h3>7.2 混淆矩阵（测试集）</h3>
+      <table class="cm">
+        <thead><tr><th></th><th>预测：无目标</th><th>预测：有目标</th></tr></thead>
+        <tbody>
+          <tr><th>实际：无目标</th><td class="tn">3976<span class="lab">TN</span></td><td class="fp">62<span class="lab">FP</span></td></tr>
+          <tr><th>实际：有目标</th><td class="fn">198<span class="lab">FN</span></td><td class="tp">3764<span class="lab">TP</span></td></tr>
+        </tbody>
+      </table>
+
+      <h3>7.3 按 SNR 分档</h3>
+      <div class="bars">
+        <div class="bar-row"><div class="bar-label">−8 ~ −5 dB</div><div class="bar-track"><div class="bar-fill" style="width:89.14%"></div></div><div class="bar-val">89.14% · n=1611</div></div>
+        <div class="bar-row"><div class="bar-label">−5 ~ −2 dB</div><div class="bar-track"><div class="bar-fill" style="width:97.59%"></div></div><div class="bar-val">97.59% · n=2369</div></div>
+        <div class="bar-row"><div class="bar-label">−2 ~ +1 dB</div><div class="bar-track"><div class="bar-fill" style="width:99.42%"></div></div><div class="bar-val">99.42% · n=2405</div></div>
+        <div class="bar-row"><div class="bar-label">+1 ~ +4 dB</div><div class="bar-track"><div class="bar-fill" style="width:99.13%"></div></div><div class="bar-val">99.13% · n=1615</div></div>
+      </div>
+      <p class="small muted">柱长表示精度。低 SNR 档是主要误差来源；高 SNR 档已接近 99%。</p>
+
+      <h3>7.4 资源/时序/功耗汇总</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>项目</th><th class="num">使用</th><th class="num">可用</th><th class="num">占比</th></tr></thead>
+          <tbody>
+            <tr><td>LUT</td><td class="num">12,735</td><td class="num">53,200</td><td class="num">23.94%</td></tr>
+            <tr><td>FF</td><td class="num">12,650</td><td class="num">106,400</td><td class="num">11.89%</td></tr>
+            <tr><td>BRAM Tile</td><td class="num">128</td><td class="num">140</td><td class="num">91.43%</td></tr>
+            <tr><td>DSP</td><td class="num">0</td><td class="num">220</td><td class="num">0%</td></tr>
+            <tr><td>WNS @ 50 MHz</td><td class="num">+2.853 ns</td><td class="num">20 ns</td><td class="num">—</td></tr>
+            <tr><td>WHS @ 50 MHz</td><td class="num">+0.106 ns</td><td class="num">—</td><td class="num">—</td></tr>
+            <tr><td>功耗（vectorless）</td><td class="num">0.375 W</td><td class="num">—</td><td class="num">估算</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">功耗为 Vivado vectorless 估算（动态 0.261 W + 静态 0.114 W），没有真实翻转率，不能作为板上实测值。</p>
+    </section>
+
+    <section class="card" id="s8">
+      <h2><span class="num">8</span>讨论与局限</h2>
+      <h3>8.1 主要局限</h3>
+      <ul>
+        <li><strong>合成数据：</strong>当前数据集由 LFM + 杂波 + 噪声模型生成，不是实测雷达数据；真实系统还有校准误差、非平稳杂波、多径、目标起伏等。</li>
+        <li><strong>幅度谱丢相位：</strong>没有做相干积累/匹配滤波；低 SNR 性能受限。完整做法是时域匹配滤波或频域 <code>R(f)S*(f)</code> + IFFT。</li>
+        <li><strong>不是硬实时：</strong>5.6 ms/次对应约 179 次/s，不适合 100 µs PRI 的逐脉冲实时处理；适合低重频、离线或后续跨脉冲流水。</li>
+        <li><strong>特征提取在片外：</strong>FFT、log、median/MAD 归一化当前由 Python 离线完成；上板可在 PL 内做 512 点 FFT（PS/DDR 不在本次范围）。</li>
+        <li><strong>时序/功耗为 OOC 估算：</strong>尚未上板，缺少真实时钟、引脚和翻转率。</li>
+      </ul>
+
+      <h3>8.2 为什么仍然是有意义的</h3>
+      <ul>
+        <li>在 7020 上实现了接近 BRAM 上限的 52.5 万突触 SNN，而不是小规模玩具网络。</li>
+        <li>32-lane 无乘法器 SNN 单元 + S_UPDATE 流水，50 MHz 时序收敛。</li>
+        <li>ANN→整数 SNN 不是“近似”，RTL 与 Python 逐计数一致（8/8）。</li>
+        <li>在低 SNR + 强杂波 + 随机距离/速度的合成回波上达到 96.75%，PD 95%，PFA 1.54%。</li>
+      </ul>
+
+      <h3>8.3 如果换真实数据</h3>
+      <p>需要重新采集/标注真实雷达回波，重新训练 ANN 并重新做 λ 校准/量化；阈值和输出偏置可能需要按新数据分布重新标定。硬件架构不变，只换权重和测试向量。</p>
+
+      <h3>8.4 资源余量与“榨干”路线</h3>
+      <p>只看 PL：当前设计只把 <strong>BRAM 用到了 91.4%</strong>，LUT / FF 还有大量余量，DSP 按二值 SNN 特性暂未使用（PS/DDR 不在本次范围）。准确地说：它是“int8 权重 + 256-bit 字 + 32 lane”组织下的 BRAM 极限，<strong>不是 7020 PL 的绝对极限</strong>。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>资源</th><th class="num">已用</th><th class="num">占比</th><th class="num">余量</th><th>结论</th></tr></thead>
+          <tbody>
+            <tr><td>LUT</td><td class="num">12,735 / 53,200</td><td class="num">23.94%</td><td class="num">76.06%</td><td>大量空闲</td></tr>
+            <tr><td>FF</td><td class="num">12,650 / 106,400</td><td class="num">11.89%</td><td class="num">88.11%</td><td>大量空闲</td></tr>
+            <tr><td>BRAM</td><td class="num">128 / 140</td><td class="num">91.43%</td><td class="num">8.57%</td><td><strong>瓶颈</strong></td></tr>
+            <tr><td>DSP</td><td class="num">0 / 220</td><td class="num">0%</td><td class="num">100%</td><td>SNN 无乘法器，未用</td></tr>
+            <tr><td>PL 时钟</td><td class="num">50 MHz</td><td class="num">—</td><td class="num">≈8.7 MHz</td><td>设计上限约 58 MHz；未到器件速度上限</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>要“榨干”，按收益排序：</p>
+      <ol>
+        <li><strong>8-bit 效率版（已实现，推荐，见 9.5）：</strong>512→256→128→2，<strong>164,096 突触（−69%）</strong>，实测 <strong>36.5/140 BRAM</strong>，SNN 96.64%，PFA 1.44%，1.77 ms。任务已饱和，缩小网络比继续加大更划算。</li>
+        <li><strong>4-bit 容量版（已实现，容量实验，见 9.4）：</strong>512→704→704→2，857,472 突触，118.5/140 BRAM，SNN 96.50%，PFA 2.48%；精度/PFA 不如 8-bit 基线。</li>
+        <li><strong>100 MHz：</strong>当前关键路径约 17 ns，设计上限约 58 MHz；把编码器改成时分复用（32 路/cycle ×16 拍）并给数据通路再加一级流水，可把 5.59 ms 降到约 <strong>2.8 ms</strong>，吞吐翻倍。</li>
+        <li><strong>片上 FFT / 匹配滤波：</strong>用 DSP 做 512 点 FFT + log + 归一化，PL 自包含，DSP 不再为 0；12 个空闲 BRAM 可做 FFT/双缓冲。</li>
+        <li><strong>多通道/多脉冲并行（PL）：</strong>用剩余 LUT/FF/BRAM 并行处理多路回波或多脉冲，提高吞吐/做积累；DSP 可用于多路 FFT。</li>
+        <li><strong>稀疏/时钟门控：</strong>零 chunk 跳过、层内时钟门控，降低动态功耗；不增加容量，但提高性能/瓦。</li>
+      </ol>
+      <div class="callout note">
+        <strong>建议顺序：</strong>8-bit 256-128 效率版已完成（推荐，见 9.5）→ 1D spiking CNN/SEW-ResNet（见 9.6）→ 100 MHz/片上 FFT。4-bit 大网络保留为容量实验。
+      </div>
+      <div class="callout warn">
+        <strong>板级参数说明：</strong>器件级参数已从 Vivado 确认（<code>xc7z020clg400-2</code>，53,200 LUT / 106,400 FF / 140 BRAM36 / 220 DSP）。当前综合/实现是 out-of-context，只验证了器件资源与内部时序；上板还需要领航者 7020 的原理图/XDC（50 MHz PL 时钟引脚、复位）。PS/DDR 等 PS 端资源不在本次范围。
+      </div>
+    </section>
+
+    <section class="card" id="s9">
+      <h2><span class="num">9</span>下一步与结论</h2>
+      <h3>9.1 PL 上板集成</h3>
+      <ul>
+        <li>特征源：片上 512 点 FFT + log + median/MAD 归一化，或外部简单接口预装特征；PS/DDR 不在范围。</li>
+        <li>加 PL 时钟/复位/引脚约束，生成 bitstream，上板实测延迟/功耗。</li>
+        <li>结果读出：简单 PL 寄存器 / UART / ILA（可选）。</li>
+      </ul>
+
+      <h3>9.2 算法增强</h3>
+      <ul>
+        <li>时域匹配滤波/频域 <code>R(f)S*(f)</code> 距离像作为对比特征；预期低 SNR 性能更好。</li>
+        <li>更强杂波/多径/目标起伏（Swerling）数据；真实数据重训。</li>
+        <li>多脉冲相干/非相干积累，提高检测率。</li>
+      </ul>
+
+      <h3>9.3 性能/容量</h3>
+      <ul>
+        <li>100 MHz：进一步流水/降 lane 数；当前关键路径约 17 ns。</li>
+        <li>4-bit 权重 + 64 lane：已实现 512→704→704→2（857,472 突触，见 9.4）；若输入/层再扩可接近 1M。</li>
+        <li>稀疏门控（零 chunk 跳过）降低动态功耗；跨脉冲流水提高吞吐。</li>
+      </ul>
+
+      <h3>9.4 榨干版：4-bit 权重 + 64 lane（已实现）</h3>
+      <div class="callout warn"><strong>定位：</strong>这一版是“容量/速度实验”：857k 突触、4-bit、118.5 BRAM；PFA 2.48%、精度 96.50%，都不如 8-bit 基线。如果目标是检测质量/效率，直接看 9.5 的 8-bit 256-128。</div>
+      <p>在 8-bit 基线之上，把权重压到 <strong>4-bit</strong>、突触并行度从 32 提高到 <strong>64</strong>，网络从 512-512-512-2 扩到 <strong>512-704-704-2</strong>。4-bit 版同样完成 RTL、位精确仿真、综合/实现。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <thead><tr><th>项目</th><th>8-bit 基线</th><th>4-bit 榨干版</th><th>变化</th></tr></thead>
+          <tbody>
+            <tr><td>网络</td><td>512-512-512-2</td><td>512-704-704-2</td><td>突触 +63%</td></tr>
+            <tr><td>突触数</td><td class="num">525,312</td><td class="num">857,472</td><td class="num">+332,160</td></tr>
+            <tr><td>权重</td><td>int8（−127…127）</td><td>int4（−7…7）</td><td>—</td></tr>
+            <tr><td>并行度</td><td>32 lane</td><td>64 lane</td><td>2×</td></tr>
+            <tr><td>SNN 精度</td><td>96.75%</td><td>96.50%</td><td>−0.25%</td></tr>
+            <tr><td>PD / PFA</td><td>95.00% / 1.54%</td><td>95.46% / 2.48%</td><td>PD +0.46%，PFA +0.94%</td></tr>
+            <tr><td>AUC</td><td>0.9931</td><td>0.9921</td><td>−0.0010</td></tr>
+            <tr><td>周期/次</td><td class="num">279,714</td><td class="num">237,762</td><td class="num">−15%</td></tr>
+            <tr><td>延迟 @ 50 MHz</td><td class="num">5.594 ms</td><td class="num">4.755 ms</td><td class="num">−15%</td></tr>
+            <tr><td>吞吐</td><td class="num">178.8 次/s</td><td class="num">210.3 次/s</td><td class="num">+17.6%</td></tr>
+            <tr><td>LUT</td><td class="num">12,735 (23.94%)</td><td class="num">13,893 (26.11%)</td><td class="num">+1,158</td></tr>
+            <tr><td>FF</td><td class="num">12,650 (11.89%)</td><td class="num">13,182 (12.39%)</td><td class="num">+532</td></tr>
+            <tr><td>BRAM</td><td class="num">128 (91.43%)</td><td class="num">118.5 (84.64%)</td><td class="num">−9.5 tile</td></tr>
+            <tr><td>DSP</td><td>0</td><td>0</td><td>—</td></tr>
+            <tr><td>WNS @ 50 MHz</td><td class="num">+2.853 ns</td><td class="num">+3.795 ns</td><td class="num">+0.942 ns</td></tr>
+            <tr><td>功耗（vectorless）</td><td class="num">0.375 W</td><td class="num">0.381 W</td><td class="num">+0.006 W</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>4-bit 版阈值 <code>θ = [39, 15, 84]</code>，偏置范围 41 / 15 / 53，膜电位仍是 24-bit；权重文件在 <code>weights4/</code>，指标在 <code>docs/metrics4.json</code>。</p>
+      <p>硬件仿真同样 <strong>8/8 PASS</strong>，<code>count0/count1/decision</code> 与 Python 完全一致（<code>build/sim4/sim4.log</code>）。突触吞吐约 <strong>2.89 G/s</strong>（峰值 64×50 MHz = 3.2 G/s，约 90%）。</p>
+      <div class="callout warn">
+        <strong>代价：</strong>4-bit 的 PFA 从 1.54% 升到 2.48%，精度 −0.25%；如果任务更看重低虚警，8-bit 基线仍然更稳。4-bit 版适合追求容量/延迟。
+      </div>
+      <div class="callout note">
+        <strong>实现文件：</strong><code>rtl/lif_layer4.v</code>、<code>rtl/snn_top4.v</code>、<code>sim/tb_snn_top4.v</code>、<code>weights4/</code>、<code>build/sim4/</code>、<code>build/synth4/</code>。50 MHz WNS +3.795 ns；若继续上 100 MHz，需要再流水化编码器/数据通路。
+      </div>
+
+      <h3>9.5 效率版：8-bit 512-256-128-2（推荐）</h3>
+      <p>任务在 512-256-128 就饱和：缩小网络后精度几乎不变，但延迟/BRAM 大幅下降。8-bit 效率版用 <strong>31% 突触、26% 的 BRAM</strong>，拿到 96.64%（−0.11%）、更低的 PFA（1.44% vs 1.54%）和更高的 AUC（0.9943 vs 0.9931）。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <thead><tr><th>项目</th><th>8-bit 基线 512-512-512</th><th>8-bit 效率版 512-256-128</th><th>4-bit 容量版 512-704-704</th></tr></thead>
+          <tbody>
+            <tr><td>突触数</td><td class="num">525,312</td><td class="num"><strong>164,096（−69%）</strong></td><td class="num">857,472（+63%）</td></tr>
+            <tr><td>权重 / lane</td><td>int8 / 32</td><td>int8 / 32</td><td>int4 / 64</td></tr>
+            <tr><td>SNN 精度</td><td>96.75%</td><td><strong>96.64%</strong></td><td>96.50%</td></tr>
+            <tr><td>PD / PFA</td><td>95.00% / 1.54%</td><td><strong>94.67% / 1.44%</strong></td><td>95.46% / 2.48%</td></tr>
+            <tr><td>AUC</td><td>0.9931</td><td><strong>0.9943</strong></td><td>0.9921</td></tr>
+            <tr><td>周期 / 次</td><td class="num">279,714</td><td class="num"><strong>88,610</strong></td><td class="num">237,762</td></tr>
+            <tr><td>延迟 @ 50 MHz</td><td class="num">5.594 ms</td><td class="num"><strong>1.772 ms</strong></td><td class="num">4.755 ms</td></tr>
+            <tr><td>吞吐</td><td class="num">178.8 次/s</td><td class="num"><strong>564.3 次/s</strong></td><td class="num">210.3 次/s</td></tr>
+            <tr><td>LUT</td><td class="num">12,735 (23.94%)</td><td class="num">11,603 (21.81%)</td><td class="num">13,893 (26.11%)</td></tr>
+            <tr><td>FF</td><td class="num">12,650 (11.89%)</td><td class="num">11,288 (10.61%)</td><td class="num">13,182 (12.39%)</td></tr>
+            <tr><td>BRAM</td><td class="num">128 (91.43%)</td><td class="num"><strong>36.5 (26.07%)</strong></td><td class="num">118.5 (84.64%)</td></tr>
+            <tr><td>WNS @ 50 MHz</td><td class="num">+2.853 ns</td><td class="num">+3.254 ns</td><td class="num">+3.795 ns</td></tr>
+            <tr><td>功耗（vectorless）</td><td class="num">0.375 W</td><td class="num"><strong>0.278 W</strong></td><td class="num">0.381 W</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>硬件仿真 <strong>8/8 PASS</strong>，<code>count0/count1/decision</code> 与 Python 完全一致（<code>build/sim_eff/sim_eff.log</code>）。实现文件：<code>rtl/snn_top_eff.v</code>、<code>sim/tb_snn_top_eff.v</code>、<code>weights_eff/</code>、<code>build/sim_eff/</code>、<code>build/synth_eff/</code>、<code>docs/metrics_eff.json</code>。</p>
+      <div class="callout note">
+        <strong>PFA 校准（本工作 count margin；论文用的是膜电位）：</strong>纯 SNN 的输出 spike-count margin 可以做雷达 PFA 门限。验证集选阈值，测试集（8,000 例）：
+        <strong>PFA 1e-2 → DEC_THRESH=2 → PD 92.38%（实测 PFA 0.54%）</strong>；
+        5e-3 → 3 → PD 89.78%（0.20%）；
+        1e-3 → 5 → PD 84.07%（0.00%，0 FP）。
+        AUC 0.9943；count argmax 96.64%；最佳验证阈值 −1 → 96.75%。RTL 加 <code>DEC_THRESH</code>（默认 2），8 个用例 margin ≥6，仿真仍 8/8 PASS。
+      </div>
+      <div class="callout note">
+        <strong>T=32 选项：</strong>96.73% / PD 95.03% / PFA 1.61% / AUC 0.9945，延迟约 3.54 ms；如果更看重 PD/精度，可以把 T 设成 32。
+      </div>
+      <div class="callout warn">
+        <strong>4-bit 怎么选：</strong>4-bit 大网络（857k）被这版支配——更大、更慢、PFA 更高。4-bit 只有在 256-128 小网络上才有速度优势：Python 评估 96.78% / PD 95.41% / PFA 1.88%，约 0.95 ms，尚未做 RTL；如果速度优先，可以下一步实现。
+      </div>
+
+      <h3>9.6 全网调研：更高效的 SNN 架构（节选）</h3>
+      <p>检索了 arXiv、Crossref、Semantic Scholar、Frontiers/GRSL/IET 等来源。没有找到与“512-bin FFT 二分类回波检测”完全相同的论文；下面是最相关、可迁移的结果（数字来自论文摘要/页面，不能直接套用到本任务）。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <thead><tr><th>方向</th><th>代表工作</th><th>关键结果（论文报告）</th><th>对本项目的启示</th></tr></thead>
+          <tbody>
+            <tr><td>残差 SNN</td><td>SEW-ResNet, NeurIPS 2021</td><td>DVS Gesture 97.92%（T=4）；ImageNet 67–69%</td><td>用 SEW-ADD 残差做 1D CNN；spike+spike 无乘法</td></tr>
+            <tr><td>深残差</td><td>MS-ResNet, arXiv 2021/2023</td><td>ImageNet 74.21%（T=5）</td><td>膜电位 shortcut；深残差可训练</td></tr>
+            <tr><td>低延迟转换</td><td>QCFS, ICLR 2022</td><td>CIFAR-10 VGG16 91.18% @T=2；93.96% @T=4</td><td>重训 ANN 的 QCFS 激活；低 T 精度更高</td></tr>
+            <tr><td>逐层时间步</td><td>PASCAL, TMLR 2025</td><td>ResNet-34 ≈74%；64× 更少时间步</td><td>逐层 λ/θ/时间步校准</td></tr>
+            <tr><td>快转换</td><td>Fast-SNN, TPAMI 2024</td><td>ImageNet VGG16 71.31% @T=3</td><td>signed IF；低 T 转换</td></tr>
+            <tr><td>低比特</td><td>QP-SNN, ICLR 2025 / Adaptive Bit Allocation, 2025</td><td>+2.69% 精度、4.16× 更低 bit 预算</td><td>QAT/剪枝修 4-bit 的 PFA 回归</td></tr>
+            <tr><td>低比特 PTQ</td><td>SpikeQ, arXiv 2026</td><td>4-bit 权重/电位距全精度 2.59 点以内</td><td>spike-flip-aware 舍入，无需重训</td></tr>
+            <tr><td>雷达 SNN</td><td>Sea-clutter SNN, IEEE GRSL 2025</td><td>IPIX 海杂波 PD 0.8266 @ PFA 0.001</td><td>膜电位读出控制 PFA；时间-频率图输入</td></tr>
+            <tr><td>雷达 SNN</td><td>FMCW Fourier SNN, Front. Neurorobot. 2021</td><td>RMSE 0.0056/0.0060 vs DFT；3 目标全检出</td><td>SNN 替代 DFT/CFAR；频域处理可行</td></tr>
+            <tr><td>雷达 SNN</td><td>Spiking resonators, NCE 2025</td><td>F-score 0.72 vs FT 0.60；8192 神经元仅 53 spikes（时间编码）</td><td>稀疏时间编码；range/angle 估计</td></tr>
+            <tr><td>FPGA</td><td>SupraSNN, arXiv 2026</td><td>XC7Z020：92,604 突触、4-bit、33.5/140 BRAM、100 MHz、149 µs、0.172 W</td><td>小 4-bit SNN 在 7020 上完全可行</td></tr>
+            <tr><td>FPGA</td><td>PYNQ-Z2 QCSNN ECG, Sensors 2026</td><td>99.02%、11.54 ms、0.33 W</td><td>量化 CNN-SNN 级联；低功耗边缘推理</td></tr>
+            <tr><td>不建议</td><td>Spikformer / Spikingformer / SDT</td><td>16.8M–66.3M 参数</td><td>7020 BRAM 不足（16.8M×1 bit≈2.1 MB）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout note">
+        <strong>最推荐的下一版：</strong>紧凑 <strong>1D spiking CNN + SEW-ADD residual</strong>，4-bit 权重，T=2–4，约 10k–50k 权重；输入 512-bin 频谱或匹配滤波距离像，global pool + FC(2)。权重共享减少参数、卷积对谱/距离平移不变、SEW-ADD 是 spike+spike 无乘法，7020 放得下。转换用 QCFS/PASCAL 或直接训练；4-bit 的 PFA 回归可用 QAT/QP-SNN/SpikeQ 修。
+      </div>
+      <div class="callout warn">
+        <strong>不建议现在做：</strong>Spikformer/Spikingformer/SDT（16.8M–66.3M 参数，7020 放不下）；burst coding 需要多脉冲 RTL；TTFS 需要替换 sigma-delta 编码和计数读出，不是 drop-in。当前最稳的落地版本仍是 8-bit 256-128（1.77 ms、36.5 BRAM）；1D spiking CNN 是下一阶段。
+      </div>
+      <p class="small muted">主要链接：SEW-ResNet arXiv:2102.04159；QCFS arXiv:2303.04347；PASCAL arXiv:2505.01730；Fast-SNN arXiv:2305.19868；QP-SNN arXiv:2502.05905；SpikeQ arXiv:2610.23046；Sea-clutter SNN doi:10.1109/LGRS.2025.3529956；FMCW Fourier SNN doi:10.3389/fnbot.2021.688344；Spiking resonators doi:10.1088/2634-4386/adcf46；SupraSNN arXiv:2606.13354；PYNQ-Z2 QCSNN doi:10.3390/s26123723。</p>
+
+      <h3>9.7 试验：MF + 1D CNN + 小 SNN 头（混合）</h3>
+      <p>把<strong>匹配滤波 range profile</strong>作为 1D 输入：先训一个紧凑 1D CNN（max pool、无残差、9,682 参数），再取它的 32 维 global-max 特征，接一个 <strong>32-32-2 的 SNN 头</strong>。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <thead><tr><th>方案</th><th>精度</th><th>PD / PFA</th><th>AUC</th><th>参数 / 突触</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>MF + 1D CNN（ANN）</td><td><strong>98.01%</strong></td><td>97.15% / 1.16%</td><td>0.9959</td><td>9,682 参数</td><td>CNN 前端非 spiking</td></tr>
+            <tr><td>CNN 32 特征 + SNN 32-32-2（T=32）</td><td><strong>97.94%</strong></td><td>97.40% / 1.54%</td><td><strong>0.9960</strong></td><td><strong>2,112 SNN 突触</strong> + 9,682 CNN</td><td><strong>混合，推荐</strong></td></tr>
+            <tr><td>CNN 32 特征 + SNN 32-32-2（T=16）</td><td>97.88%</td><td>97.50% / 1.76%</td><td>0.9957</td><td>2,112 SNN 突触</td><td>更低延迟</td></tr>
+            <tr><td>纯 spiking CNN（朴素 rate 转换）</td><td>85.04%</td><td>85.23% / 15.16%</td><td>0.9246</td><td>9,682 参数</td><td><strong>不可直接用</strong></td></tr>
+            <tr><td>8-bit 效率 MLP（纯 SNN）</td><td>96.64%</td><td>94.67% / 1.44%</td><td>0.9943</td><td>164,096 突触</td><td>已实现 RTL 的 1D 纯 SNN</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>关键点：MF 提供相干增益，CNN 的 <strong>global max pool</strong> 提供平移不变性；去掉残差仍是 98.01%，但换成 average pool 只有 95.1%。SNN 头 T=32 时与 CNN 的 98.01% 只差 0.07%，而 SNN 只有 2,112 个突触。</p>
+      <div class="callout warn">
+        <strong>这不是纯 SNN：</strong>CNN 前端（9,682 参数）不是 spiking，SNN 只做 32 维分类头。纯 spiking CNN 的朴素 rate 转换只有 85.04%——深层 conv + global max 的转换损失很大，要纯 SNN 需要 QCFS/PASCAL 或直接训练，并实现卷积引擎。如果老师要求纯 SNN，9.9 的 2D 时频 RSN 已到 99.72%（2D 卷积引擎尚未 RTL）；已实现 RTL 的推荐仍是 8-bit 256-128（96.64%，1.77 ms）。混合方案适合“精度/效率优先、允许 CNN 前端”的场景。
+      </div>
+      <p class="small muted">文件：<code>python/train_cnn.py</code>、<code>python/convert_cnn_snn.py</code>、<code>python/extract_cnn_feat.py</code>、<code>models/cnn_mf_max_r0.pt</code>、<code>models/ann_hybrid.pt</code>、<code>data/mf_cnn_feat.npz</code>、<code>docs/metrics_cnn_mf.json</code>、<code>docs/metrics_hybrid_snn.json</code>。MF 特征生成脚本在 <code>archive/mf_mlp_experiment/</code>。</p>
+
+      <h3>9.8 2024–2026 新模型：SNN 主力的可行路线</h3>
+      <p>检索了近三年“SNN 做主要计算”的模型。结论：<strong>SpikingMamba/Spikformer 这类大模型不适合 7020；最实用的是时频图 + 2D 残差 spiking CNN（RSN，已在 9.9 验证 99.72%），以及小 1D spiking CNN/SEW + QCFS/PASCAL；spiking U-Net 留作杂波抑制备选。</strong></p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <thead><tr><th>模型/方向</th><th>年份/来源</th><th>关键结果</th><th>参数 / T</th><th>对本项目</th></tr></thead>
+          <tbody>
+            <tr><td>P-SpikeSSM</td><td>ICLR 2025</td><td>全 spiking SSM；LRA；psMNIST 98.4%</td><td>~250k；序列长 L</td><td>8-bit 可放，但 causal scan 对 FPGA 不友好；长序列备选</td></tr>
+            <tr><td><strong>小型 1D spiking CNN / SEW-ResNet + QCFS/PASCAL</strong></td><td>SEW 2021 / QCFS 2022 / PASCAL 2025</td><td>SNN 自己做 conv；QCFS/PASCAL 接近 ANN；T=4–8</td><td>10k–50k；T=4–8</td><td>1D 备选；需要 conv engine</td></tr>
+            <tr><td>Spiking U-Net（本报告提案）</td><td>结合 sea-clutter RSN 2025</td><td>SNN 输出干净 range profile，做杂波抑制</td><td>~20–25k；T=8；10–15 BRAM</td><td><strong>杂波抑制备选；需要 per-bin 标签</strong></td></tr>
+            <tr><td>SpikCommander</td><td>AAAI 2026</td><td>SHD 96.41%（0.19M）；SSC 83.26%（1.12M）；T=100</td><td>0.19M/1.12M；T=100</td><td>T 太长，不适合 100 µs PRI</td></tr>
+            <tr><td>MRA-SNN</td><td>arXiv 2024</td><td>1D 振动；MFPT 94.57%；T=4</td><td>1.75M；T=4</td><td>参数太大；需 4-bit/DDR</td></tr>
+            <tr><td>SpikingMamba-1.3B / SpikeGPT</td><td>2025 / 2024</td><td>LLM/语言；1.3B / 45M–216M</td><td>太大；Mamba-Spike 的 backbone 非 spiking</td><td>不适合 7020</td></tr>
+            <tr><td>Gamma-ray spectral SNN</td><td>arXiv 2025</td><td>49 neurons / 66 synapses；2 mW、20.2 ms；51.8% TPR @ 1 FA/hr</td><td>极小</td><td>最接近“1D 光谱二分类”的 edge SNN；任务不同</td></tr>
+            <tr><td>雷达 SNN</td><td>GRSL 2025 / RadarConf 2024 / 2026</td><td>海杂波 RSN PD 0.8266 @ PFA 1e-3；HRRP SNN；STT 98.99%；EMRFormer 0.31–0.53M T=1</td><td>—</td><td>SNN 主力在雷达上可行；暂无 7020 实现</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout note">
+        <strong>建议：</strong>如果 SNN 必须做主力，<strong>首选 9.9 的 2D 时频 RSN</strong>（已本地验证 99.72%，T=4，28,146 参数，6 层卷积全 spiking；需要 2D 卷积引擎）。如果暂时不做 2D 引擎，备选 <strong>QCFS/PASCAL 的小型 1D spiking CNN</strong>（SNN 做 6 层 conv，T=8，10k–50k 权重，1D conv engine）；如果希望 SNN 直接输出距离像/做杂波抑制，选 <strong>spiking U-Net</strong>（~20–25k，T=8，10–15 BRAM）。P-SpikeSSM 作为研究备选；SpikCommander（T=100）、MRA-SNN（1.75M）、SpikingMamba-1.3B/SpikeGPT 都不适合 7020。
+      </div>
+      <div class="callout warn">
+        <strong>现实检查：</strong>我们本地试过纯 spiking CNN：direct BPTT 85.5%、naive rate 转换 85.0%、QCFS 原型 51%（λ/公式没对齐）。QCFS 必须用正确的 per-layer λ、θ=λ、v(0)=θ/2、T=L；不能把 ANN 直接 rate 转换就当纯 SNN。当前最佳纯 SNN（在时频 RSN 之前）是 8-bit 256-128（96.64%，1.77 ms）；最佳精度是混合方案（97.94%，但 SNN 只是 2,112 突触的头）。本地 RSN-style 1D 残差 SNN 为 92.64%（membrane readout，PD 80.44% @ PFA 1e-2）；膜电位搬到 8-bit MLP 上 AUC 只有 0.62；count-margin PFA 更好（见 9.5）。<strong>9.9 的 2D 时频 RSN 已把纯 SNN 提到 99.72%（T=4，28,146 参数，6 层卷积全 spiking）</strong>，这是目前的最佳算法结果；2D 卷积引擎尚未 RTL。
+      </div>
+      <p class="small muted">链接：P-SpikeSSM arXiv:2406.02923；SEW-ResNet arXiv:2102.04159；QCFS arXiv:2303.04347；PASCAL arXiv:2505.01730；SpikCommander arXiv:2511.07883；MRA-SNN arXiv:2408.11067；gamma-ray SNN arXiv:2510.20997；sea-clutter RSN doi:10.1109/LGRS.2025.3529956；HRRP SNN doi:10.1109/RadarConf2458775.2024.10549488；STT doi:10.1109/IJCNN69854.2026.11729898；EMRFormer arXiv:2606.24075。</p>
+
+      <h3>9.9 时频图 + 2D 残差 spiking CNN（time-frequency RSN，最新）</h3>
+      <p>GRSL 2025 的 RSN 用 <strong>time-frequency graphs（TFG）</strong>作为输入，主干是残差 spiking 网络，输出取膜电位以控制 PFA。我们按这个思路做了本地复现：512 点回波 → 64 点 STFT（hop 16，29 帧，补到 32×32）→ log + median/MAD → 8-bit TFG；数据集 24,000/4,000/8,000。先训 2D 残差 CNN 作为 ANN 上界，再把 <strong>全部 6 层卷积换成 spiking</strong>（SEW-ADD 残差、BN、LIF、膜电位读出、direct BPTT），T=4。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <colgroup><col style="width:26%"><col style="width:10%"><col style="width:13%"><col style="width:9%"><col style="width:15%"><col style="width:27%"></colgroup>
+          <thead><tr><th>方案</th><th>测试精度</th><th>PD / PFA</th><th>AUC</th><th>参数</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>1D 纯 SNN MLP（8-bit 512-256-128）</td><td>96.64%</td><td>94.67% / 1.44%</td><td>0.9943</td><td>164,096 突触</td><td>已实现 RTL，1.77 ms</td></tr>
+            <tr><td>MF + 1D CNN + SNN 头（混合）</td><td>97.94%</td><td>97.40% / 1.54%</td><td>0.9960</td><td>9,682 CNN + 2,112 SNN</td><td>CNN 前端非 spiking</td></tr>
+            <tr><td><strong>STFT + 2D 残差 CNN（ANN 上界）</strong></td><td><strong>99.83%</strong></td><td>—</td><td>—</td><td>28,146</td><td>ANN 原型</td></tr>
+            <tr><td><strong>STFT + 2D 残差 spiking CNN（T=4）</strong></td><td><strong>99.72%</strong></td><td><strong>99.67% / 0.22%</strong></td><td><strong>0.9998</strong></td><td><strong>28,146</strong></td><td><strong>纯 SNN 主力，6 层卷积全 spiking</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>2D SNN 与 ANN 上界只差 <strong>0.11 个点</strong>；混淆矩阵 TN=4029、FP=9、FN=13、TP=3949。按 SNR 分档：[-8,-5) 98.94%、[-5,-2) 99.92%、[-2,1) 99.96%、[1,4) 99.88%。低 SNR 档仍是主要误差来源，但已从 1D 纯 SNN 的 89.14% 提升到 98.94%。</p>
+      <div class="callout note">
+        <strong>PFA 校准（膜电位读出）：</strong>用验证集负样本的分位数选阈值，冻结后测测试集：
+        <strong>PFA 1e-2 → PD 99.82%（实测 PFA 1.31%）</strong>；
+        5e-3 → PD 99.82%（0.67%）；
+        1e-3 → PD 99.47%（0.05%）。
+        这比 1D MLP 的 count-margin 在相同 PFA 下高约 7–15 个点（1e-2：92.38% → 99.82%；1e-3：84.07% → 99.47%）。
+      </div>
+      <div class="callout">
+        <strong>这算不算“SNN 主力”？</strong>算。STFT/FFT 是雷达标准预处理，不是学习层；分类所需的 6 层 2D 卷积、残差、池化/读出全部由 spiking 神经元完成。和 9.7 的混合方案不同，这里没有 CNN 前端；和 9.8 的朴素 rate 转换不同，这里是 direct BPTT + SEW 残差 + 膜电位读出，T=4 就收敛。
+      </div>
+      <p><strong>硬件代价（估算，2D 卷积引擎尚未 RTL）</strong></p>
+      <p>2D SNN 的权重只有 27,792 个卷积核参数（+FC 66 +BN 288 = 28,146），但计算量比 MLP 大：每时间步 10.76M MAC，T=4 共 43.06M MAC。按 64 lane、100 MHz 的 2D 卷积引擎，dense 最坏约 6.73 ms；实测各层输入脉冲率 53.7%/20.0%/24.7%/29.3%/22.9%/20.8%，事件驱动（跳过零脉冲）有效 MAC 约 10.05M，约 1.57 ms；128 lane 可到 0.79 ms（dense 3.36 ms）。膜电位 73,728 个 ×24 bit ≈ 48 BRAM，权重约 7 BRAM，加行缓冲约 60/140 BRAM；LUT 估算 28k（64 lane）到 46k（128 lane）。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <colgroup><col style="width:20%"><col style="width:22%"><col style="width:10%"><col style="width:10%"><col style="width:18%"><col style="width:20%"></colgroup>
+          <thead><tr><th>版本</th><th>权重 / 膜电位</th><th>BRAM</th><th>LUT</th><th>延迟 dense</th><th>延迟 event-driven</th></tr></thead>
+          <tbody>
+            <tr><td>1D 8-bit 512-256-128（已 RTL）</td><td>164,096×8b / 384×24b</td><td>36.5</td><td>11,603</td><td>1.77 ms @50 MHz/32 lane</td><td>—</td></tr>
+            <tr><td><strong>2D TFG RSN，64 lane</strong></td><td>27,792×8b / 73,728×24b</td><td>~60</td><td>~28k</td><td>6.73 ms @100 MHz</td><td><strong>~1.57 ms</strong></td></tr>
+            <tr><td>2D TFG RSN，128 lane</td><td>27,792×8b / 73,728×24b</td><td>~60</td><td>~46k</td><td>3.36 ms @100 MHz</td><td>~0.79 ms</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">注：2D 版资源/延迟是按 1D 32-lane 引擎（11,603 LUT、36.5 BRAM）线性外推的估算，未综合；事件驱动按平均脉冲率估算，实际取决于脉冲分布。2D 卷积引擎需要 3×3 行缓冲、stride-2、16/32 通道、BN 折叠和 LIF/SEW 控制，是下一步 RTL 工作。</p>
+      <p><strong>四篇雷达 SNN 论文的下载/引用情况</strong></p>
+      <p class="small muted">IEEE Xplore 的 4 篇为闭源，只有摘要/元数据（TF-Spkformer 摘要为空）；EMRFormer 已下载 arXiv 全文 PDF。</p>
+      <div class="table-wrap">
+        <table class="long-table">
+          <colgroup><col style="width:33%"><col style="width:30%"><col style="width:14%"><col style="width:23%"></colgroup>
+          <thead><tr><th>论文（出处 / DOI）</th><th>内容与结果</th><th>全文</th><th>与本工作</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Sea-Surface Small Target Detection Using SNN With Controllable False Alarm</strong>（GRSL 2025，10.1109/LGRS.2025.3529956）</td><td>TFG + 残差 spiking 网络 + 膜电位 PFA；IPIX 1.024 s，PFA 1e-3，PD 0.8266；ResNet18 约 70% 能耗</td><td>IEEE 闭源</td><td><strong>引用论文；9.9 复现</strong></td></tr>
+            <tr><td>High-Resolution Range Profile Target Recognition with Neuromorphic ADCs and SNNs（RadarConf 2024，10.1109/RadarConf2458775.2024.10549488）</td><td>神经形态 ADC 异步 HRRP + SNN；采样率降低 &gt;95%</td><td>闭源</td><td>ADC 前端不同</td></tr>
+            <tr><td>Spiking Neural Network-Based Radar Human Activity Recognition（IJCNN 2026，10.1109/IJCNN69854.2026.11729898）</td><td>拓扑正则 spiking transformer（STT），微多普勒 HAR 98.99%</td><td>闭源</td><td>模型太大，不适合 7020</td></tr>
+            <tr><td>TF-Spkformer: A Lightweight Time-Frequency SNN for Small-Target Detection in Sea Clutter（GRSL 2026，10.1109/LGRS.2026.3753747）</td><td>轻量时频 SNN，海杂波小目标</td><td>闭源</td><td>主题最接近；无指标</td></tr>
+            <tr><td>EMRFormer（arXiv:2606.24075）</td><td>原始 IQ 自动调制识别；0.31/0.53M，T=1；RML OA 62.50–87.40%</td><td>全文 PDF</td><td>任务不同；不适合 7020</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <strong>spike-count margin 是什么：</strong>它是<strong>我们自己的读出方式</strong>，不是论文术语。rate-coded SNN 在 T 步内给每个输出神经元累计脉冲数 count0/count1；定义 <code>margin = count1 − count0</code>，判决“有目标”当 <code>margin &gt; δ</code>。δ=0 就是 argmax；δ&gt;0 要求目标类赢出余量，用验证集负样本选 δ 来换更低 PFA（1D MLP：δ=2/3/5 → PFA 1e-2/5e-3/1e-3，PD 92.38/89.78/84.07%）。RTL 里就是 <code>DEC_THRESH</code>。GRSL 2025 RSN 用的是<strong>膜电位</strong>而不是 count margin；本报告的 2D RSN 也用膜电位，所以 PFA 校准与论文一致。
+      </div>
+      <p class="small muted">文件：<code>python/tf_data.py</code>、<code>python/train_cnn2d.py</code>、<code>models/cnn2d_tf.pt</code>、<code>python/train_spiking_cnn2d.py</code>、<code>python/eval_spiking_cnn2d.py</code>、<code>models/spiking_cnn2d_tf.pt</code>、<code>data/radar_tf.npz</code>、<code>docs/metrics_spiking_cnn2d.json</code>。命令：<code>python python/tf_data.py</code> → <code>python python/train_cnn2d.py --data data/radar_tf.npz</code> → <code>python python/train_spiking_cnn2d.py --data data/radar_tf.npz --T 4 --epochs 60 --readout membrane --sew 1</code> → <code>python python/eval_spiking_cnn2d.py</code>。</p>
+
+      <div class="callout">
+        <strong>结论：</strong>本工作完成了从合成雷达回波数据、ANN 训练、整数 SNN 转换，到 RTL、位精确仿真、7020 综合/实现的全链路。8-bit 基线为 512-512-512-2（525,312 突触，96.75%，PD 95.00%，PFA 1.54%，AUC 0.9931，5.594 ms，BRAM 128/140）；8-bit 效率版为 512-256-128-2（164,096 突触，96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，1.772 ms，BRAM 36.5/140），是当前已上 RTL 的推荐版本；4-bit 容量版为 512-704-704-2（857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140），是容量实验。三版 RTL 均与 Python 8/8 用例逐计数一致。此外试验了 MF + 1D CNN + 32-32-2 SNN 头：CNN 98.01%（9,682 参数），SNN 头 97.94%（2,112 突触，T=32，PD 97.40%，PFA 1.54%，AUC 0.9960）；纯 spiking CNN 的朴素 rate 转换 85.04%。<strong>最新的 9.9 用 STFT 32×32 + 2D 残差 spiking CNN（T=4，28,146 参数，6 层卷积全部 spiking）把纯 SNN 测试精度提到 99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%；按 64 lane/100 MHz 事件驱动估算约 1.57 ms。</strong>这证明“SNN 做主力”在时频图上可行，也说明时频 RSN 比 1D MLP 更值得做 2D 卷积引擎。剩余工作是 PL 上板集成、真实数据验证、2D 卷积引擎/行缓冲 RTL、以及 100 MHz 与片上 STFT/FFT 优化。
+      </div>
+    </section>
+
+    <section class="card" id="sa">
+      <h2><span class="num">A</span>复现与附录</h2>
+
+      <details>
+        <summary>复现命令（Python + Vivado）</summary>
+        <pre><span class="dim"># 环境：D:\app\anaconda\envs\pytorch（Python 3.10, torch 2.4.1+cu）
+# Vivado 2025.2: G:\app\vivado2025.2\2025.2\Vivado\bin\vivado.bat</span>
+
+<span class="dim"># 1) 数据</span>
+python python/radar_data.py --bins 512 --train 24000 --val 4000 --test 8000 \
+       --seed 2027 --out data/radar512.npz
+
+<span class="dim"># 2) 训练 ANN</span>
+python python/train_ann.py --data data/radar512.npz --h1 512 --h2 512 \
+       --epochs 120 --seed 43 --wd 1e-2 --dropout 0.2 --noise 0.03 \
+       --label-smooth 0.05 --out models/ann512_B.pt
+
+<span class="dim"># 3) 导出整数 SNN 权重 + 硬件测试向量</span>
+python python/export_hw.py --model models/ann512_B.pt --data data/radar512.npz \
+       --pct 99.0 --T 16 --scale 1.003921568627451 --outdir weights
+
+<span class="dim"># 4) xsim 仿真（在 build/sim 下运行，$readmemh 使用相对路径）</span>
+cd build/sim
+cp ../../weights/*.mem .
+xvlog -sv ../../rtl/weight_mem.v ../../rtl/rate_encoder.v \
+      ../../rtl/lif_layer.v ../../rtl/snn_top.v ../../sim/tb_snn_top.v
+xelab -debug typical tb_snn_top -s tb_snn_top
+xsim tb_snn_top -runall
+
+<span class="dim"># 5) 综合 + 实现（50 MHz，OOC）</span>
+cd ../synth
+cp ../../weights/*.mem .
+vivado -mode batch -nolog -nojournal -source ../../tcl/synth.tcl
+vivado -mode batch -nolog -nojournal -source ../../tcl/impl.tcl
+
+<span class="dim"># 6) 时频 RSN（STFT 32x32 + 2D 残差 spiking CNN）</span>
+python python/tf_data.py --train 24000 --val 4000 --test 8000 --out data/radar_tf.npz
+python python/train_cnn2d.py --data data/radar_tf.npz --width 16 --epochs 120 --out models/cnn2d_tf.pt
+python python/train_spiking_cnn2d.py --data data/radar_tf.npz --T 4 --epochs 60 \
+       --readout membrane --sew 1 --out models/spiking_cnn2d_tf.pt
+python python/eval_spiking_cnn2d.py --model models/spiking_cnn2d_tf.pt \
+       --data data/radar_tf.npz --out docs/metrics_spiking_cnn2d.json</pre>
+      </details>
+
+      <details>
+        <summary>文件清单</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>路径</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr><td><code>rtl/snn_top.v</code></td><td>顶层 FSM、三层次序、计数/判决</td></tr>
+              <tr><td><code>rtl/lif_layer.v</code></td><td>32-lane LIF 层、预取、S_UPDATE 流水</td></tr>
+              <tr><td><code>rtl/rate_encoder.v</code></td><td>512 路 sigma-delta 速率编码</td></tr>
+              <tr><td><code>rtl/weight_mem.v</code></td><td>256-bit 权重 BRAM/LUTRAM</td></tr>
+              <tr><td><code>sim/tb_snn_top.v</code></td><td>自检 testbench</td></tr>
+              <tr><td><code>python/radar_data.py</code></td><td>合成雷达回波 + 频域特征</td></tr>
+              <tr><td><code>python/tf_data.py</code></td><td>STFT 时频图数据集（32×32）</td></tr>
+              <tr><td><code>python/train_cnn2d.py</code></td><td>2D 残差 CNN ANN（上界 99.83%）</td></tr>
+              <tr><td><code>python/train_spiking_cnn2d.py</code></td><td>2D 残差 spiking CNN（direct BPTT，T=4）</td></tr>
+              <tr><td><code>python/eval_spiking_cnn2d.py</code></td><td>2D SNN 精度/PFA/脉冲率/延迟估算</td></tr>
+              <tr><td><code>data/radar_tf.npz</code></td><td>24k/4k/8k STFT 时频图数据</td></tr>
+              <tr><td><code>models/cnn2d_tf.pt / spiking_cnn2d_tf.pt</code></td><td>2D ANN / 2D SNN 权重</td></tr>
+              <tr><td><code>docs/metrics_cnn2d.json</code></td><td>2D ANN 精度/参数量</td></tr>
+              <tr><td><code>docs/metrics_spiking_cnn2d.json</code></td><td>2D SNN 指标、PFA 表、分层脉冲率</td></tr>
+              <tr><td><code>python/train_ann.py</code></td><td>ANN 训练</td></tr>
+              <tr><td><code>python/convert_snn.py</code></td><td>ANN→整数 SNN 参考模型</td></tr>
+              <tr><td><code>python/export_hw.py</code></td><td>权重/偏置/测试向量导出</td></tr>
+              <tr><td><code>weights/</code></td><td>w1..w3.mem、b1..b3.mem、硬件测试向量</td></tr>
+              <tr><td><code>build/sim/sim_final.log</code></td><td>最终 8/8 PASS 日志</td></tr>
+              <tr><td><code>build/synth/util_impl.rpt / timing_impl.rpt</code></td><td>资源/时序报告</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details>
+        <summary>术语表</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>术语</th><th>含义</th></tr></thead>
+            <tbody>
+              <tr><td>SNN</td><td>Spiking Neural Network，脉冲神经网络</td></tr>
+              <tr><td>LIF</td><td>Leaky Integrate-and-Fire，泄漏积分点火神经元；本工作 leak=0（IF）</td></tr>
+              <tr><td>ANN→SNN</td><td>用 rate coding 和权重缩放把训练好的 ANN 转成脉冲网络</td></tr>
+              <tr><td>PD / PFA</td><td>检测率 / 虚警率</td></tr>
+              <tr><td>AUC</td><td>ROC 曲线下面积，衡量检测器排序能力</td></tr>
+              <tr><td>WNS / WHS</td><td>最差 setup / hold slack</td></tr>
+              <tr><td>BRAM</td><td>Block RAM，7020 共 140 个 36 Kb BRAM</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details open class="tips-details">
+        <summary>答辩要点（可直接照着讲）</summary>
+        <div class="tips">
+          <div class="tip"><b>1. 任务</b><br>雷达回波“有/无目标”检测。时域匹配滤波是标准做法；按老师允许，我们用 FFT 幅度谱做频域简化，只做检测，不做测距/测速/分类。</div>
+          <div class="tip"><b>2. 数据</b><br>合成 LFM 回波 + 低频强杂波 + 噪声，随机距离/多普勒，SNR −7…3 dB；逐样本归一化去掉绝对能量，迫使网络学谱形。</div>
+          <div class="tip"><b>3. 算法</b><br>ANN 512-512-512-2 → 整数 SNN；int8 权重、24-bit 膜电位、T=16；阈值 [316, 289, 3571]；SNN 精度 96.75%。</div>
+          <div class="tip"><b>4. 硬件</b><br>8-bit 基线 512-512-512（128/140 BRAM，5.59 ms）；8-bit 效率版 512-256-128（36.5/140 BRAM，1.77 ms，96.64%）；4-bit 大网络是容量实验。</div>
+          <div class="tip"><b>5. 验证</b><br>RTL 与 Python 整数模型逐计数一致，8/8 用例 PASS；不是“差不多”，是 count0/count1/decision 全等。</div>
+          <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 时频 RSN 的 2D 卷积引擎尚未 RTL，延迟/BRAM/LUT 是估算；下一步上板 + 真实数据 + 2D 卷积引擎。</div>
+          <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking；64 lane/100 MHz 事件驱动估算 1.57 ms；2D 卷积引擎是下一步 RTL。</div>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>本报告数据来自 <code>G:\python-G\snn</code> 工程的实际仿真与综合结果；数据为合成雷达回波，非实测数据。生成日期：2026-11-23。</p>
+  </footer>
+</div>
+</body>
+</html>

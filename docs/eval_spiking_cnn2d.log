@@ -1,0 +1,12 @@
+2D SNN T=4 params=28146 acc=99.72% PD=99.67% PFA=0.22% AUC=0.9998
+confusion 4029 9 13 3949
+target PFA=1e-02: thr=-0.6869 test_PD=99.82% test_PFA=1.31%
+target PFA=5e-03: thr=-0.4004 test_PD=99.82% test_PFA=0.67%
+target PFA=1e-03: thr=0.4754 test_PD=99.47% test_PFA=0.05%
+  SNR [-8,-5): n=1611 acc=98.94%
+  SNR [-5,-2): n=2369 acc=99.92%
+  SNR [-2,1): n=2405 acc=99.96%
+  SNR [1,4): n=1615 acc=99.88%
+input firing rate 0.5374
+layer firing rates [0.2002, 0.2472, 0.2932, 0.2293, 0.2077, 0.4051]
+saved docs/metrics_spiking_cnn2d.json

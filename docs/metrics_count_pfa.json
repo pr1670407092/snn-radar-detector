@@ -1,0 +1,30 @@
+{
+  "model": "8-bit 512-256-128 pure SNN + count-margin PFA",
+  "T": 16,
+  "auc_val": 0.9942166716671668,
+  "auc_test": 0.9943499275809642,
+  "count_acc": 0.966375,
+  "dec_thresh_default": 2,
+  "best_val_thr": -1,
+  "best_test_acc": 0.9675,
+  "pfa_table": [
+    {
+      "target_pfa": 0.01,
+      "dec_thresh": 2,
+      "test_PD": 0.9238,
+      "test_PFA": 0.0054
+    },
+    {
+      "target_pfa": 0.005,
+      "dec_thresh": 3,
+      "test_PD": 0.8978,
+      "test_PFA": 0.002
+    },
+    {
+      "target_pfa": 0.001,
+      "dec_thresh": 5,
+      "test_PD": 0.8407,
+      "test_PFA": 0.0
+    }
+  ]
+}

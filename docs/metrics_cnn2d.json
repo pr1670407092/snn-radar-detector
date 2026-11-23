@@ -1,0 +1,9 @@
+{
+  "model": "STFT 32x32 + 2D residual CNN (ANN upper bound)",
+  "params": 28146,
+  "test_acc": 0.99825,
+  "data": "data/radar_tf.npz",
+  "width": 16,
+  "pool": "max",
+  "note": "2D residual CNN, max pool, ReLU"
+}

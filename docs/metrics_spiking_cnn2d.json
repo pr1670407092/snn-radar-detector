@@ -1,0 +1,97 @@
+{
+  "model": "STFT 32x32 + 2D residual spiking CNN (time-frequency RSN)",
+  "params": 28146,
+  "T": 4,
+  "sew": true,
+  "readout": "membrane",
+  "accuracy": 0.99725,
+  "PD": 0.9967188288743059,
+  "PFA": 0.002228826151560178,
+  "auc": 0.9998234215637961,
+  "confusion": {
+    "TN": 4029,
+    "FP": 9,
+    "FN": 13,
+    "TP": 3949
+  },
+  "pfa_table": [
+    {
+      "target_pfa": 0.01,
+      "threshold": -0.6868752241134644,
+      "PD": 0.9982332155477032,
+      "PFA": 0.013125309559187717,
+      "TN": 3985,
+      "FP": 53,
+      "FN": 7,
+      "TP": 3955
+    },
+    {
+      "target_pfa": 0.005,
+      "threshold": -0.40037503838539124,
+      "PD": 0.9982332155477032,
+      "PFA": 0.006686478454680535,
+      "TN": 4011,
+      "FP": 27,
+      "FN": 7,
+      "TP": 3955
+    },
+    {
+      "target_pfa": 0.001,
+      "threshold": 0.47541794180870056,
+      "PD": 0.9946996466431095,
+      "PFA": 0.0004952947003467063,
+      "TN": 4036,
+      "FP": 2,
+      "FN": 21,
+      "TP": 3941
+    }
+  ],
+  "snr_bins": [
+    {
+      "lo": -8,
+      "hi": -5,
+      "n": 1611,
+      "acc": 0.9894475481067659
+    },
+    {
+      "lo": -5,
+      "hi": -2,
+      "n": 2369,
+      "acc": 0.9991557619248628
+    },
+    {
+      "lo": -2,
+      "hi": 1,
+      "n": 2405,
+      "acc": 0.9995841995841996
+    },
+    {
+      "lo": 1,
+      "hi": 4,
+      "n": 1615,
+      "acc": 0.9987616099071207
+    }
+  ],
+  "input_firing_rate": 0.5373597145080566,
+  "layer_firing_rates": [
+    0.2001960575580597,
+    0.2471901923418045,
+    0.29318612813949585,
+    0.22933825850486755,
+    0.20771867036819458,
+    0.4050939679145813
+  ],
+  "macs_per_timestep": 10764288,
+  "macs_total": 43057152,
+  "latency_ms_64lane_100mhz": 6.727679999999999,
+  "latency_ms_128lane_100mhz": 3.3638399999999997,
+  "event_driven_macs_total": 10047026.390625,
+  "event_driven_latency_ms_64lane_100mhz": 1.5698478735351562,
+  "event_driven_latency_ms_128lane_100mhz": 0.7849239367675781,
+  "conv_weights": 27792,
+  "neurons": 73728,
+  "membrane_bram_estimate": 48,
+  "weight_bram_estimate": 7,
+  "bram_estimate": 60,
+  "note": "STFT/FFT front-end is non-spiking; all six conv layers are spiking. Event-driven estimate assumes uniform spikes at the measured mean rates."
+}

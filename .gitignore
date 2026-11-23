@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+
+# Vivado / synthesis / simulation artifacts (regenerate with tcl/)
+build/
+*.dcp
+*.rpt
+*.str
+*.bit
+*.ltx
+*.jou
+*.log
+!docs/*.log
+.Xil/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Paper full texts are not redistributed; metadata/abstracts only
+papers/*.pdf
+papers/*.txt
+
+# Temporary
+*.tmp
+*.bak
