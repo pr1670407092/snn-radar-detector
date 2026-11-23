@@ -216,19 +216,19 @@
   spk_mem 3104×32，编码器/层/FC FSM。
 - `sim/tb_snn2d_top.v`：8 个测试向量（4 正/4 负），对比 decision、FC 分数和每层脉冲计数。
 
-功能仿真结果：**8/8 decision PASS**；FC 分数与整数参考差 <3%；每层计数差 <1%
-（L6 约 0.8%）。L1 t0 的输出图和膜电位 **0 bit 差**；跨 t 的 row-buffer 仍有
+功能仿真结果：**8/8 decision PASS**；FC 分数与整数参考差 <4%；L2–L5 计数差 <0.2%，
+L6 约 0.8%。L1 t0 的输出图和膜电位 **0 bit 差**；跨 t 的 row-buffer 仍有
 5 个字/43 bit 的边角差异，尚未 bit-exact，这是下一步收尾项。
 
-- 延迟：8 例仿真共 71.34 ms → 约 **8.9 ms/次 @100 MHz**（含特征写入、4 次编码、
+- 延迟：8 例仿真共 72.08 ms → 约 **9.01 ms/次 @100 MHz**（含特征写入、4 次编码、
   6 层 dense MAC、读出/FC）；dense MAC 理论 6.73 ms，事件驱动 1.57 ms 尚未实现。
-- 资源（Vivado 2025.2，xc7z020clg400-2，OOC，50 MHz 实现）：**LUT 16,116/53,200（30.3%）**、
-  **FF 8,981/106,400（8.4%）**、**BRAM 98/140（70%）**、**DSP 2/220**；功耗 **0.392 W**
-  （动态 0.280 + 静态 0.113）。
-- 时序：100 MHz 综合 **WNS −3.268 ns**（17 个失败端点），关键路径
-  `layer` 配置 → 64-lane LIF/脉冲计数；**50 MHz 综合 +6.732 ns，实现 WNS +0.293 ns、
-  WHS +0.123 ns、0 失败端点**，50 MHz 版本时序收敛；100 MHz 需要 LIF/计数两级流水。
-  实现结果见 `build/synth2d50/timing2d50_impl.rpt`。
+- 资源（Vivado 2025.2，xc7z020clg400-2，OOC，100 MHz 实现）：**LUT 14,946/53,200（28.1%）**、
+  **FF 10,427/106,400（9.8%）**、**BRAM 98/140（70%）**、**DSP 2/220**；功耗 **0.584 W**
+  （动态 0.468 + 静态 0.116）。
+- 时序：100 MHz 实现 **WNS +0.070 ns、WHS +0.098 ns，0 失败端点**。流水化：
+  配置/阈值寄存 → pc/计数寄存 → tap 计数器（去 /9）→ 两级 LIF（fire_vec 寄存）
+  → FC 乘/加两级；100 MHz 综合从 −3.268 收到 +2.641，实现 +0.070。
+  实现结果见 `build/synth2d/timing2d_impl.rpt`。
 - 复现：`python/convert_snn2d.py` → 生成 `weights2d/`、`hw2d/`；`build/sim2d` 下 xvlog/xelab/xsim；
   `tcl/synth2d.tcl` / `tcl/impl2d.tcl`；仿真日志 `docs/sim2d_8.log`（8/8 PASS）。
 
@@ -557,7 +557,7 @@ build/sim2d/ 2D RTL xsim
 build/synth/  8-bit 基线综合/实现
 build/synth_eff/ 8-bit 效率版综合/实现
 build/synth4/ 4-bit 容量版综合/实现
-build/synth2d/ 2D RTL 100MHz 综合
+build/synth2d/ 2D RTL 100MHz 综合/实现
 build/synth2d50/ 2D RTL 50MHz 综合/实现
 docs/       metrics.json / metrics_eff.json / metrics4.json /
             metrics_cnn_mf.json / metrics_hybrid_snn.json / metrics_spiking_cnn2d.json /

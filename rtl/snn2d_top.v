@@ -98,6 +98,15 @@ module snn2d_top (
     reg [7:0]  cfg_bbase;
     reg [11:0] cfg_spkin_base, cfg_spkout_base, cfg_sew_base;
 
+    // registered layer config (removes layer -> LIF long path)
+    reg [5:0]  cfg_cin_q, cfg_cout_q, cfg_hin_q, cfg_win_q, cfg_hout_q, cfg_wout_q;
+    reg [1:0]  cfg_stride_q;
+    reg        cfg_sew_q;
+    reg [10:0] cfg_wbase_q, cfg_vbase_q;
+    reg [7:0]  cfg_bbase_q;
+    reg [11:0] cfg_spkin_base_q, cfg_spkout_base_q, cfg_sew_base_q;
+    reg signed [23:0] cfg_th_q;
+
     always @* begin
         cfg_cin = 6'd1; cfg_cout = 6'd16;
         cfg_hin = 6'd32; cfg_win = 6'd32;
@@ -158,13 +167,13 @@ module snn2d_top (
     conv2d_engine u_eng (
         .clk(clk), .rst(rst), .start(eng_start),
         .busy(eng_busy), .done(eng_done),
-        .cfg_cin(cfg_cin), .cfg_cout(cfg_cout),
-        .cfg_hin(cfg_hin), .cfg_win(cfg_win),
-        .cfg_hout(cfg_hout), .cfg_wout(cfg_wout),
-        .cfg_stride(cfg_stride), .cfg_sew(cfg_sew),
-        .cfg_wbase(cfg_wbase), .cfg_bbase(cfg_bbase), .cfg_vbase(cfg_vbase),
-        .cfg_spkin_base(cfg_spkin_base), .cfg_spkout_base(cfg_spkout_base),
-        .cfg_sew_base(cfg_sew_base), .cfg_th(cfg_th),
+        .cfg_cin(cfg_cin_q), .cfg_cout(cfg_cout_q),
+        .cfg_hin(cfg_hin_q), .cfg_win(cfg_win_q),
+        .cfg_hout(cfg_hout_q), .cfg_wout(cfg_wout_q),
+        .cfg_stride(cfg_stride_q), .cfg_sew(cfg_sew_q),
+        .cfg_wbase(cfg_wbase_q), .cfg_bbase(cfg_bbase_q), .cfg_vbase(cfg_vbase_q),
+        .cfg_spkin_base(cfg_spkin_base_q), .cfg_spkout_base(cfg_spkout_base_q),
+        .cfg_sew_base(cfg_sew_base_q), .cfg_th(cfg_th_q),
         .w_addr(w_addr), .w_data(w_data),
         .b_addr(b_addr), .b_data(b_data),
         .spk_raddr(spk_raddr), .spk_rdata(spk_rdata),
@@ -208,13 +217,15 @@ module snn2d_top (
                T_FC        = 4'd11,
                T_FC_FIN    = 4'd12,
                T_DONE      = 4'd13,
-               T_CLEAR_ENC_WAIT = 4'd14;
+               T_CLEAR_ENC_WAIT = 4'd14,
+               T_FC_ADD    = 4'd15;
 
     reg [10:0] clear_cnt;
     reg [6:0]  rd_idx;
     reg [4:0]  fc_k;
     reg signed [23:0] maxv [0:31];
     reg signed [47:0] acc0, acc1;
+    reg signed [31:0] prod0, prod1;
 
     assign dbg_layer = layer;
     assign dbg_t = t;
@@ -297,6 +308,16 @@ module snn2d_top (
                 end
 
                 T_L_START: begin
+                    cfg_cin_q <= cfg_cin; cfg_cout_q <= cfg_cout;
+                    cfg_hin_q <= cfg_hin; cfg_win_q <= cfg_win;
+                    cfg_hout_q <= cfg_hout; cfg_wout_q <= cfg_wout;
+                    cfg_stride_q <= cfg_stride; cfg_sew_q <= cfg_sew;
+                    cfg_wbase_q <= cfg_wbase; cfg_bbase_q <= cfg_bbase;
+                    cfg_vbase_q <= cfg_vbase;
+                    cfg_spkin_base_q <= cfg_spkin_base;
+                    cfg_spkout_base_q <= cfg_spkout_base;
+                    cfg_sew_base_q <= cfg_sew_base;
+                    cfg_th_q <= $signed(th_mem[layer]);
                     eng_start <= 1'b1;
                     tstate <= T_L_WAIT;
                 end
@@ -356,12 +377,19 @@ module snn2d_top (
                 end
 
                 T_FC: begin
-                    acc0 <= acc0 + $signed(maxv[fc_k]) * $signed(fc_w_mem[0][8*fc_k +: 8]);
-                    acc1 <= acc1 + $signed(maxv[fc_k]) * $signed(fc_w_mem[1][8*fc_k +: 8]);
+                    prod0 <= $signed(maxv[fc_k]) * $signed(fc_w_mem[0][8*fc_k +: 8]);
+                    prod1 <= $signed(maxv[fc_k]) * $signed(fc_w_mem[1][8*fc_k +: 8]);
+                    tstate <= T_FC_ADD;
+                end
+                T_FC_ADD: begin
+                    acc0 <= acc0 + {{16{prod0[31]}}, prod0};
+                    acc1 <= acc1 + {{16{prod1[31]}}, prod1};
                     if (fc_k == 5'd31)
                         tstate <= T_FC_FIN;
-                    else
+                    else begin
                         fc_k <= fc_k + 5'd1;
+                        tstate <= T_FC;
+                    end
                 end
                 T_FC_FIN: begin
                     score0 <= acc0 + $signed(fc_b_mem[0]);

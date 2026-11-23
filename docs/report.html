@@ -206,7 +206,7 @@
     <strong>混合试验（9.7）：</strong>MF + 1D CNN（9,682 参数，98.01%）+ 32-32-2 SNN 头（2,112 突触，97.94%，T=32，PD 97.40% / PFA 1.54% / AUC 0.9960）。纯 spiking CNN 的朴素 rate 转换仅 85.04%；9.9 的 2D 时频 RSN 用 direct BPTT 做到 99.72%，是新的纯 SNN 最佳。混合方案的 CNN 前端不是 spiking。
   </div>
   <div class="callout" style="margin:8px 18px 0">
-    <strong>时频 RSN（最新，9.9）：</strong>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，6 层卷积全部 spiking，测试 <strong>99.72%</strong>，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。2D 卷积引擎 RTL 已完成功能仿真 8/8（9.10）；100 MHz 综合 WNS −3.27 ns，需 LIF/计数流水；事件驱动 1.57 ms 为估算。
+    <strong>时频 RSN（最新，9.9）：</strong>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，6 层卷积全部 spiking，测试 <strong>99.72%</strong>，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。2D 卷积引擎 RTL 已完成功能仿真 8/8（9.10）；100 MHz 实现 WNS +0.070 ns（0 失败），功耗 0.584 W；事件驱动 1.57 ms 为估算。
   </div>
 
   <nav class="toc">
@@ -843,7 +843,7 @@
           </tbody>
         </table>
       </div>
-      <p class="small muted">注：2D 版 RTL 已实现（9.10）：LUT 16,116/53,200、FF 8,981/106,400、BRAM 98/140、DSP 2；50 MHz 实现 WNS +0.293 ns，功耗 0.392 W；100 MHz 综合 WNS −3.268 ns，关键路径 layer 配置→64-lane LIF/计数，需两级流水。事件驱动 1.57 ms 仍是按平均脉冲率估算，尚未实现；dense 版功能仿真 8/8 决策，单次约 8.9 ms @100 MHz / 17.8 ms @50 MHz。</p>
+      <p class="small muted">注：2D 版 RTL 已实现（9.10）：LUT 14,946/53,200、FF 10,427/106,400、BRAM 98/140、DSP 2；100 MHz 实现 WNS +0.070 ns，功耗 0.584 W；事件驱动 1.57 ms 仍是估算；dense 版功能仿真 8/8 决策，单次约 9.01 ms @100 MHz。</p>
       <p><strong>四篇雷达 SNN 论文的下载/引用情况</strong></p>
       <p class="small muted">IEEE Xplore 的 4 篇为闭源，只有摘要/元数据（TF-Spkformer 摘要为空）；EMRFormer 已下载 arXiv 全文 PDF。</p>
       <div class="table-wrap">
@@ -864,7 +864,7 @@
       </div>
       <p class="small muted">文件：<code>python/tf_data.py</code>、<code>python/train_cnn2d.py</code>、<code>models/cnn2d_tf.pt</code>、<code>python/train_spiking_cnn2d.py</code>、<code>python/eval_spiking_cnn2d.py</code>、<code>models/spiking_cnn2d_tf.pt</code>、<code>data/radar_tf.npz</code>、<code>docs/metrics_spiking_cnn2d.json</code>。命令：<code>python python/tf_data.py</code> → <code>python python/train_cnn2d.py --data data/radar_tf.npz</code> → <code>python python/train_spiking_cnn2d.py --data data/radar_tf.npz --T 4 --epochs 60 --readout membrane --sew 1</code> → <code>python python/eval_spiking_cnn2d.py</code>。</p>
 
-      <h3>9.10 2D 卷积引擎 RTL（64 lane，50 MHz 实现）</h3>
+      <h3>9.10 2D 卷积引擎 RTL（64 lane，100 MHz 实现）</h3>
       <p>9.9 的算法已经落成可综合 RTL。引擎不是六个独立卷积核，而是<strong>一个 64-lane 通用 2D 卷积引擎</strong>，由顶层按层加载运行时配置（Cin 1/16/32、Cout 16/32、stride 1/2、SEW 源、权重/偏置/膜电位基址），因此六层共享同一套 MAC/LIF 硬件。</p>
       <div class="table-wrap">
         <table class="long-table">
@@ -873,25 +873,24 @@
             <tr><td><code>rtl/conv2d_engine.v</code></td><td>64-lane 2D 卷积 + LIF + SEW；3×3 三行 line buffer；一个 tap/cycle；权重 256-bit/拍</td><td>64 lane = 4 pixel×16 ch 或 2 pixel×32 ch；int8 权重；24-bit 膜电位；signed bias/residual/threshold</td></tr>
             <tr><td><code>rtl/rate_encoder2d.v</code></td><td>1024 通道 sigma-delta 编码；1 pixel/cycle；acc 跨 t 保持；写 32-bit 行字</td><td>T=4；初始相位 (k·73)&amp;255，与 Python 逐 bit 一致</td></tr>
             <tr><td><code>rtl/snn2d_top.v</code></td><td>6 层调度、全局 max、int8 FC 32→2；v_mem/spk_mem；编码器/层/FC FSM</td><td>v_mem 1152×1536（64×24）；spk_mem 3104×32；2 DSP（FC）</td></tr>
-            <tr><td><code>sim/tb_snn2d_top.v</code></td><td>8 个测试向量（4 正/4 负），对比 decision、FC 分数、每层脉冲计数</td><td>8/8 decision PASS；分数差 &lt;3%；每层计数差 &lt;1%</td></tr>
+            <tr><td><code>sim/tb_snn2d_top.v</code></td><td>8 个测试向量（4 正/4 负），对比 decision、FC 分数、每层脉冲计数</td><td>8/8 decision PASS；分数差 &lt;4%；L2–L5 计数差 &lt;0.2%，L6 约 0.8%</td></tr>
           </tbody>
         </table>
       </div>
-      <p><strong>仿真结论：</strong>8/8 决策与 Python 整数参考一致；L1 t0 的输出 spike 图（512 字）和膜电位（256 字）<strong>0 bit 差</strong>，说明编码器、Conv1、LIF/权重/偏置/膜电位写回都是对的。跨 t 的 row-buffer 仍有 5 个字/43 bit 的边角差异（L1 t1），导致 L2–L6 的分数/计数与参考差 1–3%；尚未 bit-exact，这是收尾项，不影响决策。</p>
+      <p><strong>仿真结论：</strong>8/8 决策与 Python 整数参考一致；L1 t0 的输出 spike 图（512 字）和膜电位（256 字）<strong>0 bit 差</strong>，说明编码器、Conv1、LIF/权重/偏置/膜电位写回都是对的。跨 t 的 row-buffer 仍有 5 个字/43 bit 的边角差异（L1 t1），导致 L2–L5 的计数差 &lt;0.2%、L6 约 0.8%，FC 分数差 &lt;4%；尚未 bit-exact，这是收尾项，不影响决策。</p>
       <div class="callout note">
         <strong>资源与时序（Vivado 2025.2，xc7z020clg400-2，OOC）：</strong>
-        最终实现：LUT <strong>16,116/53,200（30.3%）</strong>、FF <strong>8,981/106,400（8.4%）</strong>、
-        BRAM <strong>98/140（70%）</strong>、DSP <strong>2/220</strong>；功耗 <strong>0.392 W</strong>
-        （动态 0.280 + 静态 0.113）。
-        50 MHz 实现 WNS <strong>+0.293 ns</strong>、WHS <strong>+0.123 ns</strong>，0 失败端点；
-        100 MHz 综合 WNS <strong>−3.268 ns</strong>（关键路径：layer 配置 → 64-lane LIF/脉冲计数）。
-        100 MHz 需要把 LIF/计数拆成两级流水（配置寄存 + pc 寄存），这是明确的下一步优化。
+        最终实现（100 MHz）：LUT <strong>14,946/53,200（28.1%）</strong>、FF <strong>10,427/106,400（9.8%）</strong>、
+        BRAM <strong>98/140（70%）</strong>、DSP <strong>2/220</strong>；功耗 <strong>0.584 W</strong>
+        （动态 0.468 + 静态 0.116）。实现 WNS <strong>+0.070 ns</strong>、WHS <strong>+0.098 ns</strong>，0 失败端点。
+        流水化：配置/阈值寄存 → pc/计数寄存 → tap 计数器（去 /9）→ 两级 LIF（fire_vec 寄存）
+        → FC 乘/加两级；100 MHz 综合从 −3.268 收到 +2.641，实现 +0.070。
       </div>
-      <p><strong>延迟：</strong>8 例仿真共 71.34 ms，平均 <strong>8.9 ms/次 @100 MHz 时钟</strong>（含特征写入、4 次编码、6 层 dense MAC、读出/FC）；50 MHz 实现对应约 <strong>17.8 ms/次</strong>。dense MAC 理论 6.73 ms；事件驱动 1.57 ms 仍是按平均脉冲率的估算，尚未实现。2D RSN 是“精度优先”的版本；1D 8-bit 256-128 仍是低延迟版本（1.77 ms）。</p>
-      <p class="small muted">文件：<code>rtl/conv2d_engine.v</code>、<code>rtl/rate_encoder2d.v</code>、<code>rtl/snn2d_top.v</code>、<code>sim/tb_snn2d_top.v</code>、<code>tcl/synth2d50.tcl</code>、<code>tcl/impl2d50.tcl</code>、<code>weights2d/</code>、<code>hw2d/</code>、<code>build/synth2d50/</code>、<code>docs/sim2d_8.log</code>。复现：<code>python python/convert_snn2d.py</code> → 在 <code>build/sim2d</code> 跑 xvlog/xelab/xsim → 在 <code>build/synth2d50</code> 跑 Vivado 50 MHz。</p>
+      <p><strong>延迟：</strong>8 例仿真共 72.08 ms，平均 <strong>9.01 ms/次 @100 MHz</strong>（含特征写入、4 次编码、6 层 dense MAC、读出/FC）；dense MAC 理论 6.73 ms；事件驱动 1.57 ms 仍是按平均脉冲率的估算，尚未实现。2D RSN 是“精度优先”的版本；1D 8-bit 256-128 仍是低延迟版本（1.77 ms）。</p>
+      <p class="small muted">文件：<code>rtl/conv2d_engine.v</code>、<code>rtl/rate_encoder2d.v</code>、<code>rtl/snn2d_top.v</code>、<code>sim/tb_snn2d_top.v</code>、<code>tcl/synth2d.tcl</code>、<code>tcl/impl2d.tcl</code>、<code>weights2d/</code>、<code>hw2d/</code>、<code>build/synth2d/</code>、<code>docs/sim2d_8.log</code>。复现：<code>python python/convert_snn2d.py</code> → 在 <code>build/sim2d</code> 跑 xvlog/xelab/xsim → 在 <code>build/synth2d</code> 跑 Vivado 100 MHz。</p>
 
       <div class="callout">
-        <strong>结论：</strong>本工作完成了从合成雷达回波数据、ANN 训练、整数 SNN 转换，到 RTL、位精确仿真、7020 综合/实现的全链路。8-bit 基线为 512-512-512-2（525,312 突触，96.75%，PD 95.00%，PFA 1.54%，AUC 0.9931，5.594 ms，BRAM 128/140）；8-bit 效率版为 512-256-128-2（164,096 突触，96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，1.772 ms，BRAM 36.5/140），是当前已上 RTL 的推荐版本；4-bit 容量版为 512-704-704-2（857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140），是容量实验。三版 RTL 均与 Python 8/8 用例逐计数一致。此外试验了 MF + 1D CNN + 32-32-2 SNN 头：CNN 98.01%（9,682 参数），SNN 头 97.94%（2,112 突触，T=32，PD 97.40%，PFA 1.54%，AUC 0.9960）；纯 spiking CNN 的朴素 rate 转换 85.04%。<strong>最新的 9.9 用 STFT 32×32 + 2D 残差 spiking CNN（T=4，28,146 参数，6 层卷积全部 spiking）把纯 SNN 测试精度提到 99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。9.10 已把它落成 64-lane RTL：LUT 16,116/53,200、FF 8,981/106,400、BRAM 98/140、DSP 2，8/8 决策通过；50 MHz 实现 WNS +0.293 ns、功耗 0.392 W，100 MHz 需 LIF/计数流水。</strong>这证明“SNN 做主力”在时频图上可行，也说明时频 RSN 比 1D MLP 更值得做 2D 卷积引擎。剩余工作是 100 MHz LIF/计数流水、跨 t 行缓冲 bit-exact、事件驱动、PL 上板/真实数据验证，以及片上 STFT/FFT。
+        <strong>结论：</strong>本工作完成了从合成雷达回波数据、ANN 训练、整数 SNN 转换，到 RTL、位精确仿真、7020 综合/实现的全链路。8-bit 基线为 512-512-512-2（525,312 突触，96.75%，PD 95.00%，PFA 1.54%，AUC 0.9931，5.594 ms，BRAM 128/140）；8-bit 效率版为 512-256-128-2（164,096 突触，96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，1.772 ms，BRAM 36.5/140），是当前已上 RTL 的推荐版本；4-bit 容量版为 512-704-704-2（857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140），是容量实验。三版 RTL 均与 Python 8/8 用例逐计数一致。此外试验了 MF + 1D CNN + 32-32-2 SNN 头：CNN 98.01%（9,682 参数），SNN 头 97.94%（2,112 突触，T=32，PD 97.40%，PFA 1.54%，AUC 0.9960）；纯 spiking CNN 的朴素 rate 转换 85.04%。<strong>最新的 9.9 用 STFT 32×32 + 2D 残差 spiking CNN（T=4，28,146 参数，6 层卷积全部 spiking）把纯 SNN 测试精度提到 99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。9.10 已把它落成 64-lane RTL：LUT 14,946/53,200、FF 10,427/106,400、BRAM 98/140、DSP 2，8/8 决策通过；100 MHz 实现 WNS +0.070 ns、功耗 0.584 W。</strong>这证明“SNN 做主力”在时频图上可行，也说明时频 RSN 比 1D MLP 更值得做 2D 卷积引擎。剩余工作是跨 t 行缓冲 bit-exact、事件驱动、PL 上板/真实数据验证，以及片上 STFT/FFT。
       </div>
     </section>
 
@@ -938,7 +937,7 @@ python python/train_spiking_cnn2d.py --data data/radar_tf.npz --T 4 --epochs 60 
 python python/eval_spiking_cnn2d.py --model models/spiking_cnn2d_tf.pt \
        --data data/radar_tf.npz --out docs/metrics_spiking_cnn2d.json
 
-<span class="dim"># 7) 2D 卷积引擎 RTL（50 MHz 实现）</span>
+<span class="dim"># 7) 2D 卷积引擎 RTL（100 MHz 实现）</span>
 python python/convert_snn2d.py --model models/spiking_cnn2d_tf.pt --data data/radar_tf.npz
 cd build/sim2d
 cp ../../weights2d/*.mem ../../hw2d/*.mem .
@@ -946,10 +945,10 @@ xvlog -sv ../../rtl/conv2d_engine.v ../../rtl/rate_encoder2d.v \
       ../../rtl/snn2d_top.v ../../sim/tb_snn2d_top.v
 xelab -debug typical tb_snn2d_top -s tb_snn2d_top
 xsim tb_snn2d_top -runall
-cd ../synth2d50
+cd ../synth2d
 cp ../../weights2d/*.mem .
-vivado -mode batch -nolog -nojournal -source ../../tcl/synth2d50.tcl
-vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d50.tcl</pre>
+vivado -mode batch -nolog -nojournal -source ../../tcl/synth2d.tcl
+vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d.tcl</pre>
       </details>
 
       <details>
@@ -1014,8 +1013,8 @@ vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d50.tcl</pre>
           <div class="tip"><b>3. 算法</b><br>ANN 512-512-512-2 → 整数 SNN；int8 权重、24-bit 膜电位、T=16；阈值 [316, 289, 3571]；SNN 精度 96.75%。</div>
           <div class="tip"><b>4. 硬件</b><br>8-bit 基线 512-512-512（128/140 BRAM，5.59 ms）；8-bit 效率版 512-256-128（36.5/140 BRAM，1.77 ms，96.64%）；4-bit 大网络是容量实验。</div>
           <div class="tip"><b>5. 验证</b><br>RTL 与 Python 整数模型逐计数一致，8/8 用例 PASS；不是“差不多”，是 count0/count1/decision 全等。</div>
-          <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 引擎 RTL 已完成功能仿真 8/8，但 100 MHz 时序需 LIF/计数流水，跨 t 行缓冲尚未 bit-exact；下一步上板 + 真实数据 + 流水/事件驱动。</div>
-          <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking；64-lane RTL 已实现，8/8 决策，50 MHz 实现 WNS +0.293 ns、0.392 W；100 MHz 需 LIF/计数流水。</div>
+          <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 引擎 RTL 已完成 8/8 决策、100 MHz 实现（WNS +0.070 ns），跨 t 行缓冲尚未 bit-exact；下一步上板 + 真实数据 + 事件驱动。</div>
+          <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking；64-lane RTL 已实现，8/8 决策，100 MHz 实现 WNS +0.070 ns、0.584 W。</div>
         </div>
       </details>
     </section>

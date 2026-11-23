@@ -70,20 +70,21 @@ module conv2d_engine (
                S_LIF       = 5'd13,
                S_NEXT_GRP  = 5'd14,
                S_ROW_WR    = 5'd15,
-               S_NEXT_ROW  = 6'd16;
+               S_NEXT_ROW  = 5'd16,
+               S_CNT       = 5'd17,
+               S_LIF2      = 5'd18;
 
     reg [4:0]  state;
     reg [5:0]  row;
     reg [2:0]  group;
-    reg [8:0]  tap_d;
+    reg [5:0]  ci_c;
+    reg [1:0]  ky_c, kx_c;
     reg [1:0]  ld_ky;
     reg [5:0]  ld_ci;
     reg        ld_zero;
     reg [5:0]  b_idx;
     reg [5:0]  res_idx;
     reg [5:0]  wr_co;
-    reg [4:0]  ci_i;
-    reg [1:0]  ky_i, kx_i;
     reg [5:0]  base_i;
     reg [3:0]  sg;
 
@@ -99,16 +100,15 @@ module conv2d_engine (
     reg               fire;
     reg [1535:0]      v_pack;
     reg [6:0]         pc;
+    reg [6:0]         pc_q;
+    reg [63:0]        fire_vec;
 
     // decode the current tap / group window
     always @* begin
-        ci_i  = tap_d / 9;
-        ky_i  = (tap_d % 9) / 3;
-        kx_i  = tap_d % 3;
         base_i = group * ((cfg_cout == 6'd16) ? 6'd4 : 6'd2) * cfg_stride;
         sg = 4'b0000;
         for (j = 0; j < 4; j = j + 1)
-            sg[j] = lbuf[ky_i][ci_i][base_i + j * cfg_stride + kx_i];
+            sg[j] = lbuf[ky_c][ci_c][base_i + j * cfg_stride + kx_c];
     end
 
     always @(posedge clk) begin
@@ -129,7 +129,7 @@ module conv2d_engine (
             v_wdata <= 1536'd0;
             row <= 6'd0;
             group <= 3'd0;
-            tap_d <= 9'd0;
+            ci_c <= 6'd0; ky_c <= 2'd0; kx_c <= 2'd0;
             ld_ky <= 2'd0;
             ld_ci <= 6'd0;
             ld_zero <= 1'b0;
@@ -211,7 +211,7 @@ module conv2d_engine (
                     if (group == 3'd0)
                         for (l = 0; l < 32; l = l + 1)
                             obuf[l] <= 32'd0;
-                    tap_d <= 9'd0;
+                    ci_c <= 6'd0; ky_c <= 2'd0; kx_c <= 2'd0;
                     w_addr <= cfg_wbase;
                     v_raddr <= cfg_vbase + row * 8 + group;
                     state <= S_GRP_WAIT;
@@ -228,7 +228,7 @@ module conv2d_engine (
                         if (sg[g])
                             acc[l] <= acc[l] + $signed(w_data[8*co +: 8]);
                     end
-                    if (tap_d == cfg_cin * 9 - 1) begin
+                    if (ci_c == cfg_cin - 1 && ky_c == 2'd2 && kx_c == 2'd2) begin
                         if (cfg_sew) begin
                             res_idx <= 6'd0;
                             state <= S_RES_SET;
@@ -236,8 +236,18 @@ module conv2d_engine (
                             state <= S_LIF;
                         end
                     end else begin
-                        tap_d <= tap_d + 9'd1;
-                        w_addr <= cfg_wbase + tap_d + 11'd2;
+                        if (kx_c == 2'd2) begin
+                            kx_c <= 2'd0;
+                            if (ky_c == 2'd2) begin
+                                ky_c <= 2'd0;
+                                ci_c <= ci_c + 6'd1;
+                            end else begin
+                                ky_c <= ky_c + 2'd1;
+                            end
+                        end else begin
+                            kx_c <= kx_c + 2'd1;
+                        end
+                        w_addr <= cfg_wbase + ci_c * 9 + ky_c * 3 + kx_c + 11'd2;
                     end
                 end
 
@@ -262,7 +272,6 @@ module conv2d_engine (
                 end
 
                 S_LIF: begin
-                    pc = 7'd0;
                     v_pack = 1536'd0;
                     for (l = 0; l < 64; l = l + 1) begin
                         co = (cfg_cout == 6'd16) ? (l & 15) : (l & 31);
@@ -275,16 +284,31 @@ module conv2d_engine (
                         v_sum = v_prev + cur;
                         fire = (v_sum >= th_ext);
                         v_new = fire ? (v_sum - th_ext) : v_sum;
-                        if (fire) begin
+                        fire_vec[l] <= fire;
+                        v_pack[24*l +: 24] = v_new[23:0];
+                    end
+                    state <= S_LIF2;
+                end
+
+                S_LIF2: begin
+                    pc = 7'd0;
+                    for (l = 0; l < 64; l = l + 1) begin
+                        co = (cfg_cout == 6'd16) ? (l & 15) : (l & 31);
+                        g  = (cfg_cout == 6'd16) ? (l >> 4) : (l >> 5);
+                        if (fire_vec[l]) begin
                             pc = pc + 7'd1;
                             obuf[co][group * ((cfg_cout == 6'd16) ? 4 : 2) + g] <= 1'b1;
                         end
-                        v_pack[24*l +: 24] = v_new[23:0];
                     end
-                    spk_count <= spk_count + {10'd0, pc};
+                    pc_q <= pc;
                     v_we <= 1'b1;
                     v_waddr <= cfg_vbase + row * 8 + group;
                     v_wdata <= v_pack;
+                    state <= S_CNT;
+                end
+
+                S_CNT: begin
+                    spk_count <= spk_count + {10'd0, pc_q};
                     state <= S_NEXT_GRP;
                 end
 

@@ -3,7 +3,7 @@
   **** SW Build 6299465 on Fri Nov 14 19:35:11 GMT 2025
   **** IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
   **** SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
-  **** Start of session at: Mon Nov 23 15:34:40 2026
+  **** Start of session at: Mon Nov 23 15:58:09 2026
     ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
     ** Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 
@@ -11,17 +11,17 @@ source xsim.dir/tb_snn2d_top/xsim_script.tcl
 # xsim {tb_snn2d_top} -autoloadwcfg -runall
 Time resolution is 1 ps
 run -all
-CASE 0 PASS: dec=1 score0=-263483 score1=473568 enc=2263 counts=13738/16462/19895/7913/7628/12675
-CASE 1 PASS: dec=1 score0=-492402 score1=400427 enc=2173 counts=13438/17752/20106/8224/7588/12276
-CASE 2 PASS: dec=1 score0=-145983 score1=400418 enc=2192 counts=13262/17465/19852/8245/7603/12184
-CASE 3 PASS: dec=1 score0=34239 score1=359621 enc=2204 counts=13551/17124/19316/8005/7516/12598
-CASE 4 PASS: dec=0 score0=352101 score1=78427 enc=2197 counts=13138/16431/18853/7594/6924/12758
-CASE 5 PASS: dec=0 score0=828325 score1=147674 enc=2132 counts=12376/16227/18949/7772/6350/12603
-CASE 6 PASS: dec=0 score0=336323 score1=114095 enc=2196 counts=13849/17762/19901/8259/7593/12499
-CASE 7 PASS: dec=0 score0=273806 score1=161137 enc=2082 counts=12410/16736/18927/7583/6410/12914
+CASE 0 PASS: dec=1 score0=-266430 score1=480767 enc=2263 counts=13738/16488/19884/7914/7637/12678
+CASE 1 PASS: dec=1 score0=-516809 score1=381793 enc=2173 counts=13438/17720/20136/8202/7511/12325
+CASE 2 PASS: dec=1 score0=-128335 score1=431034 enc=2192 counts=13262/17443/19876/8242/7658/12131
+CASE 3 PASS: dec=1 score0=48119 score1=351006 enc=2204 counts=13551/17196/19336/7998/7519/12626
+CASE 4 PASS: dec=0 score0=357657 score1=88496 enc=2197 counts=13138/16449/18857/7597/6891/12797
+CASE 5 PASS: dec=0 score0=786308 score1=146581 enc=2132 counts=12376/16221/18961/7767/6283/12557
+CASE 6 PASS: dec=0 score0=335494 score1=103319 enc=2196 counts=13849/17713/19928/8199/7507/12572
+CASE 7 PASS: dec=0 score0=335722 score1=178576 enc=2082 counts=12410/16685/18858/7528/6344/12916
 ALL 8 CASES PASS
-$finish called at time : 71338485 ns : File "G:/python-G/snn/sim/tb_snn2d_top.v" Line 160
-run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:15 . Memory (MB): peak = 228.055 ; gain = 0.000
+$finish called at time : 72075765 ns : File "G:/python-G/snn/sim/tb_snn2d_top.v" Line 160
+run: Time (s): cpu = 00:00:00 ; elapsed = 00:00:16 . Memory (MB): peak = 228.137 ; gain = 0.000
 exit
-INFO: xsimkernel Simulation Memory Usage: 11948 KB (Peak: 11948 KB), Simulation CPU Usage: 14952 ms
-INFO: [Common 17-206] Exiting xsim at Mon Nov 23 15:34:57 2026...
+INFO: xsimkernel Simulation Memory Usage: 11956 KB (Peak: 11956 KB), Simulation CPU Usage: 15483 ms
+INFO: [Common 17-206] Exiting xsim at Mon Nov 23 15:58:26 2026...
