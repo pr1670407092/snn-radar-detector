@@ -28,7 +28,6 @@
 > **已上板**：2D 均衡版在正点原子 **达芬奇Pro（XC7A200T-2FBG484I）** 上完成 JTAG 下载并跑通自检
 > （`DONE=1`、`CRC_ERROR=0`、WNS +0.182 ns @100 MHz、8/8 决策）。
 > 见 [deploy_davinci_pro/](deploy_davinci_pro/) 与 [deploy_davinci_pro/验收材料/验收报告.html](deploy_davinci_pro/验收材料/验收报告.html)。
-> ZYNQ-7020（领航者）版本仍为上板前状态。
 
 ---
 
@@ -648,9 +647,7 @@ archive/    mf_mlp_experiment/radar_mf.npz（MF range profile 数据）
 
 ---
 
-## 9. 上板验证与下一步
-
-### 9.1 已上板：达芬奇Pro XC7A200T
+## 9. 上板验证（达芬奇Pro XC7A200T）
 
 2D 均衡版已经通过 **JTAG 实际下载**到正点原子 **达芬奇Pro（XC7A200T-2FBG484I）**，不是只做仿真：
 
@@ -665,27 +662,7 @@ archive/    mf_mlp_experiment/radar_mf.npz（MF range profile 数据）
 
 - [deploy_davinci_pro/README.md](deploy_davinci_pro/README.md)
 - [deploy_davinci_pro/验收材料/验收报告.html](deploy_davinci_pro/验收材料/验收报告.html)
-- [deploy/](deploy/)：ZYNQ-7020 版部署包（引脚模板未填，尚未上 7020 实板）
+- [deploy/](deploy/)：板级部署包、引脚模板与构建/下载脚本
 
 > 上板时修掉了一个关键 bug：`exp_rom` 写成 1-bit memory 时 Vivado 会静默丢弃 `$readmemh`，位流里期望判决全 0，前 4 例必错、`pass_count` 卡在 4。已改成 8-bit memory，并合并进 main。
 
-### 9.2 ZYNQ-7020（领航者）
-
-7020 版本仍是 **OOC 综合/实现 + xsim 8/8**，没有 7020 实板；`deploy/` 里已准备好 RTL、权重、8 例 ROM、MMCM 和构建/下载脚本，只差按领航者原理图填 `deploy/constraints/pins.xdc`。有板后：
-
-1. 填 `clk50`、`rst_n`、`led[3:0]` 引脚；
-2. 跑 `deploy/scripts/build_board.tcl` 生成 bitstream；
-3. 跑 `deploy/scripts/program_board.tcl`，按复位后应看到 `led[1]`、`led[3]` 亮（8/8）。
-
-预期资源：LUT 约 30.9K、FF 约 64.4K、BRAM 约 100；100 MHz WNS 以实际实现报告为准。
-
-### 9.3 还没做的
-
-1. **真实数据**：IPIX/实测海杂波/外场回波；当前是合成 LFM+杂波，99.72% 不能直接对标 IPIX。
-2. **事件驱动卷积**：0.79 ms 是按平均脉冲率的估算，尚未 RTL 实现。
-3. **2D bit-exact**：跨 t 行缓冲仍有边角差异；1D 三版已 bit-exact。
-4. **片上 STFT/FFT**：当前特征由外部写端口预装；下一步做 64 点 STFT + log + median/MAD。
-5. **T=8 / 难集继续**：难集 76.89%，加层/加宽无收益；优先特征/预处理与真实数据。
-6. **功耗实测**：当前 0.992 W 是 Vivado vectorless 估算；200T 上板功耗未单独测量。
-
-如果暂时不做 2D 引擎：保留 8-bit 256-128 低延迟版（1.77 ms），或做 QCFS/PASCAL 1D spiking CNN。
