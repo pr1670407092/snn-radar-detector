@@ -1,0 +1,23 @@
+# ============================================================
+# 正点原子领航者 ZYNQ-7020 引脚约束模板
+# ============================================================
+# 这些引脚必须按你手上板子的原理图/用户手册填写，不能照抄。
+# 1) 找到 PL 端 50 MHz 时钟、复位按键、4 个 LED 的 PACKAGE_PIN。
+# 2) 把下面的 <...> 替换成实际引脚号（例如 U18）。
+# 3) 确认 bank 电压；多数领航者 PL bank 为 3.3 V，若不是请改 IOSTANDARD。
+# 4) 如果 LED 是低电平点亮，在 board_top.v 里把 led 取反，或改这里的约束。
+#
+# 不填写本文件时，scripts/build_board.tcl 会拒绝生成 bitstream，
+# 避免生成引脚随机、不能上板的 .bit。
+
+# 50 MHz PL clock
+set_property -dict {PACKAGE_PIN <CLK50_PIN> IOSTANDARD LVCMOS33} [get_ports clk50]
+
+# active-low reset (key/button)
+set_property -dict {PACKAGE_PIN <RST_N_PIN> IOSTANDARD LVCMOS33} [get_ports rst_n]
+
+# LEDs: [0] busy, [1] all 8 done, [2] last decision, [3] pass_count==8
+set_property -dict {PACKAGE_PIN <LED0_PIN> IOSTANDARD LVCMOS33} [get_ports {led[0]}]
+set_property -dict {PACKAGE_PIN <LED1_PIN> IOSTANDARD LVCMOS33} [get_ports {led[1]}]
+set_property -dict {PACKAGE_PIN <LED2_PIN> IOSTANDARD LVCMOS33} [get_ports {led[2]}]
+set_property -dict {PACKAGE_PIN <LED3_PIN> IOSTANDARD LVCMOS33} [get_ports {led[3]}]

@@ -1,0 +1,7 @@
+=== tb_board_top ===
+done_all asserted after 46561240 ns (46 ms)
+cases done     = 8
+decisions seen = 1 1 1 1 0 0 0 0
+LED = 1010  (led0=busy led1=done_all led2=last_dec led3=pass==8)
+dut.pass_count = 8   dut.last_dec = 0
+=== BOARD TOP SELF-TEST PASS: 8/8, LED pattern exactly as documented ===

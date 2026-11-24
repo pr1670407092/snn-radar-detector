@@ -1,0 +1,8 @@
+INFO: [Synth 8-3876] $readmem data file 'feat_all.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/board_top.v:53]
+INFO: [Synth 8-3876] $readmem data file 'exp_dec.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/board_top.v:54]
+INFO: [Synth 8-3876] $readmem data file 'w2d.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/snn2d_top.v:40]
+INFO: [Synth 8-3876] $readmem data file 'b2d.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/snn2d_top.v:41]
+INFO: [Synth 8-3876] $readmem data file 'th2d.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/snn2d_top.v:42]
+INFO: [Synth 8-3876] $readmem data file 'fc_w2d.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/snn2d_top.v:43]
+INFO: [Synth 8-3876] $readmem data file 'fc_b2d.mem' is read successfully [G:/2026qimo/snn/deploy_dfp/rtl/snn2d_top.v:44]
+7

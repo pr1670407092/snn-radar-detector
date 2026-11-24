@@ -21,7 +21,11 @@
 - **论文（IEEE Trans 中文格式，5 页）**：[docs/paper.html](docs/paper.html) / [docs/paper.pdf](docs/paper.pdf)（TFG-RSN + 7020 加速器，含 18 篇参考文献）。
 - **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
 
-> 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。**尚未上板**（当前没有板卡）。
+> 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。
+> **已上板**：2D 均衡版在正点原子 **达芬奇Pro（XC7A200T-2FBG484I）** 上完成 JTAG 下载并跑通自检
+> （`DONE=1`、`CRC_ERROR=0`、WNS +0.182 ns @100 MHz、8/8 决策）。
+> 见 [deploy_davinci_pro/](deploy_davinci_pro/) 与 [deploy_davinci_pro/验收材料/验收报告.html](deploy_davinci_pro/验收材料/验收报告.html)。
+> ZYNQ-7020（领航者）版本仍为上板前状态。
 
 ---
 

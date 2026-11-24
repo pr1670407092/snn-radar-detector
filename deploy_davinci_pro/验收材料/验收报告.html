@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>SNN 雷达检测加速器 · 达芬奇Pro 上板部署验收报告</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: #1f2328; background: #fff;
+    font-size: 14px; line-height: 1.75;
+    max-width: 900px; margin: 0 auto; padding: 32px 28px 64px;
+  }
+  h1 { font-size: 25px; margin: 0 0 6px; letter-spacing: -0.3px; }
+  h2 {
+    font-size: 18px; margin: 38px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid #e4e7ec; color: #111;
+  }
+  h3 { font-size: 15px; margin: 24px 0 10px; color: #24292f; }
+  p, li { margin: 8px 0; }
+  .sub { color: #656d76; font-size: 13px; margin: 0 0 4px; }
+  .meta {
+    border: 1px solid #d8dee4; border-radius: 8px; padding: 14px 18px;
+    background: #f6f8fa; margin: 20px 0 8px; font-size: 13px;
+  }
+  .meta dl { display: grid; grid-template-columns: 108px 1fr; gap: 5px 12px; margin: 0; }
+  .meta dt { color: #656d76; }
+  .meta dd { margin: 0; font-weight: 500; }
+
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; font-size: 13px; }
+  th, td { border: 1px solid #d8dee4; padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f3f6; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:nth-child(even) td { background: #fafbfc; }
+
+  code, pre {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 12.5px;
+  }
+  code { background: #eff2f5; padding: 1.5px 5px; border-radius: 4px; }
+  pre {
+    background: #f6f8fa; border: 1px solid #e4e7ec; border-radius: 6px;
+    padding: 12px 14px; overflow-x: auto; line-height: 1.6; margin: 10px 0 16px;
+  }
+  pre code { background: none; padding: 0; }
+
+  .verdict {
+    border-left: 4px solid #1a7f37; background: #f2f9f4;
+    padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0;
+  }
+  .verdict strong { color: #1a7f37; }
+  .warn {
+    border-left: 4px solid #bf8700; background: #fff8e6;
+    padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0;
+  }
+  .warn strong { color: #7d4e00; }
+  .bug {
+    border-left: 4px solid #cf222e; background: #fff5f5;
+    padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0;
+  }
+  .bug strong { color: #a40e26; }
+
+  .ok { color: #1a7f37; font-weight: 600; }
+  .no { color: #cf222e; font-weight: 600; }
+  .pend { color: #9a6700; font-weight: 600; }
+
+  .tag {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px;
+    background: #ddf4e4; color: #1a7f37; font-weight: 600; vertical-align: 2px;
+  }
+  .tag.p { background: #fbefcd; color: #7d4e00; }
+
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  hr { border: none; border-top: 1px solid #e4e7ec; margin: 30px 0; }
+
+  .footer { margin-top: 40px; font-size: 12px; color: #8b949e; }
+  @media print {
+    body { padding: 0; font-size: 12px; max-width: none; }
+    h2 { page-break-after: avoid; }
+    table, pre { page-break-inside: avoid; }
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>SNN 雷达检测加速器 · 达芬奇Pro 上板部署验收报告</h1>
+<p class="sub">脉冲神经网络（SNN）时频二维检测器在 Artix-7 FPGA 上的板级部署与验证</p>
+
+<div class="meta">
+  <dl>
+    <dt>开发板</dt><dd>正点原子 达芬奇Pro（核心板实测为 <strong>XC7A200T-2FBG484I</strong>）</dd>
+    <dt>Vivado 器件</dt><dd><code>xc7a200tfbg484-2</code>，JTAG IDCODE <code>0x13636093</code></dd>
+    <dt>工具链</dt><dd>Vivado 2025.2（batch 模式）+ Vivado Simulator（xsim）</dd>
+    <dt>顶层模块</dt><dd><code>board_top</code>（纯 PL，无需 PS / DDR / MIG / Petalinux）</dd>
+    <dt>验收日期</dt><dd>2026-11-24</dd>
+  </dl>
+</div>
+
+<h2>1. 结论摘要</h2>
+
+<div class="verdict">
+  <strong>已成功完成上板部署。</strong>位流已通过 JTAG 下载至 FPGA，回读 <code>DONE = 1</code>、
+  <code>CRC_ERROR = 0</code>，时序全部满足（WNS +0.182 ns @ 100 MHz）。
+  加速器核心在仿真中 <strong>8/8 例判决全部正确</strong>；板级自检电路在仿真中复现出与设计文档
+  完全一致的 LED 指示模式。
+</div>
+
+<p>本报告的全部结论都附有<strong>原始日志可核验</strong>（见第 7 节证据索引），
+每条证据都标注了对应的文件名，可逐条复查。</p>
+
+<h2>2. 任务内容</h2>
+
+<p>原始工程（<code>snn-radar-detector-main</code>）提供了一套面向时频二维特征的
+脉冲神经网络加速器 RTL 与定点权重，但其 <code>deploy/</code> 部署包的目标平台是
+<strong>领航者 ZYNQ-7020</strong>（<code>xc7z020clg400-2</code>），且引脚约束为未填写的占位模板，
+工程自带说明也明确标注「<em>没有在真实板子上跑过</em>」。</p>
+
+<p>本次工作是把该设计<strong>完整移植到正点原子达芬奇Pro 并实际上板跑通</strong>，包括：
+确定真实器件型号与引脚、补齐板级约束、修正导致硬件功能失效的缺陷、建立可复现的验证证据链。</p>
+
+<h2>3. 硬件平台确认</h2>
+
+<p>达芬奇Pro 的核心板可换（35T / 100T / 200T）。<strong>实际型号不能靠猜</strong>，
+本次通过 JTAG 直接读取器件属性确定：</p>
+
+<pre><code>DEVICE: xc7a200t_0  PART=xc7a200t  IDCODE=00010011011000110110000010010011</code></pre>
+
+<p>IDCODE <code>0x13636093</code> 对应 <strong>XC7A200T</strong>，与卖家文档常写的 XC7A100T 不同。
+据此有两个关键结论：</p>
+
+<ul>
+  <li>正确器件字符串是 <code>xc7a200tfbg484-2</code>。<strong>200T 没有 <code>fgg484</code> 封装</strong>
+      （FGG 为无铅焊球、FBG 为有铅焊球，二者焊盘尺寸相同但并非每个器件都提供两种），
+      误用会直接报 <code>[Common 17-162] Invalid option value</code>。</li>
+  <li>正因为 FGG/FBG 焊盘兼容，底板引脚号在 100T 与 200T 核心板之间通用，
+      引脚约束无需重写。</li>
+</ul>
+
+<h3>3.1 板级引脚约束（最终采用）</h3>
+
+<table>
+  <tr><th>信号</th><th>FPGA 引脚</th><th>电平标准</th><th>说明</th></tr>
+  <tr><td><code>clk50</code></td><td>R4</td><td>LVCMOS33</td><td>板载 50 MHz 有源晶振</td></tr>
+  <tr><td><code>rst_n</code></td><td>U7</td><td>LVCMOS33</td><td>RESET 按键，低电平有效</td></tr>
+  <tr><td><code>led[0]</code></td><td>W7</td><td>LVCMOS33</td><td>核忙标志</td></tr>
+  <tr><td><code>led[1]</code></td><td>Y7</td><td>LVCMOS33</td><td>8 例全部跑完</td></tr>
+  <tr><td><code>led[2]</code></td><td>Y8</td><td>LVCMOS33</td><td>末例判决</td></tr>
+  <tr><td><code>led[3]</code></td><td>V9</td><td>LVCMOS33</td><td>8/8 全对标志</td></tr>
+</table>
+
+<p>引脚来源：两处相互独立的公开工程约束（含明确标注"达芬奇Pro / XC7A100T / FGG484"的
+xCortex-M3 移植工程与蜂鸟 E203 移植工程）交叉比对一致，且经本次综合实现验证——
+6 个 IOB 全部成功绑定（<code>Bonded IOB = 6/285</code>），布局布线通过。</p>
+
+<h2>4. 设计架构</h2>
+
+<pre><code>50 MHz 板载时钟 (R4)
+      │
+      ▼
+  MMCME2_BASE  ──► 100 MHz 核心时钟
+      │
+      ▼
+┌─────────────────────────────────────────────────────────┐
+│  board_top（本次补齐的板级外壳）                          │
+│                                                          │
+│  feat_all.mem (8 KB ROM)  ──► 自检 FSM                   │
+│  exp_dec.mem   (期望判决) ──► 比对 pass_count            │
+│                                  │                       │
+│                                  ▼                       │
+│  ┌────────────────────────────────────────────────┐     │
+│  │  snn2d_top   （原工程 RTL，逻辑未改动）          │     │
+│  │  σ-Δ 编码器 1024 通道                           │     │
+│  │   → 6 层 2D Conv / LIF / SEW（128 lane 共享引擎）│     │
+│  │   → 全局 max 池化 → int8 全连接 32→2            │     │
+│  └────────────────────────────────────────────────┘     │
+│                                  │                       │
+│                                  ▼                       │
+│                         LED[3:0] 状态指示                │
+└─────────────────────────────────────────────────────────┘</code></pre>
+
+<p>设计为<strong>纯 PL 自检型</strong>：上电后自动从 ROM 取入 8 组 1024 字节测试特征，
+逐例推理并与期望判决比对，累计正确数，最终由 LED 呈现结果。单例推理约 5.82 ms，
+8 例合计约 46 ms（已由仿真实测确认：<code>done_all asserted after 46 ms</code>）。</p>
+
+<h2>5. 验证证据链</h2>
+
+<p>验证按四个层次展开，每一层的原始日志均可在证据目录中找到。
+这一分层方式是刻意的——<strong>下层通过不能替代上层</strong>，本项目正是靠分层验证
+才暴露出第 6 节的严重缺陷。</p>
+
+<h3>5.1 第一层：加速器核心功能仿真 <span class="tag">通过</span></h3>
+
+<p>使用工程自带的自检测试台 <code>tb_snn2d_top</code>，对照位精确的 Python 整数参考模型，
+逐例检查判决、FC 得分与各层脉冲计数：</p>
+
+<pre><code>CASE 0 PASS: dec=1 score0=-276173 score1=488749 enc=2263 counts=13738/16524/19910/7902/7629/12536
+CASE 1 PASS: dec=1 score0=-449466 score1=367650 enc=2173 counts=13438/17755/20167/8237/7539/12178
+CASE 2 PASS: dec=1 score0=-128102 score1=428766 enc=2192 counts=13262/17470/19900/8235/7661/12007
+CASE 3 PASS: dec=1 score0=64216  score1=306822 enc=2204 counts=13551/17263/19375/8040/7552/12418
+CASE 4 PASS: dec=0 score0=356033 score1=69718  enc=2197 counts=13138/16492/18890/7619/6990/12629
+CASE 5 PASS: dec=0 score0=855588 score1=147355 enc=2132 counts=12376/16134/18901/7734/6262/12467
+CASE 6 PASS: dec=0 score0=306287 score1=72771  enc=2196 counts=13849/17745/19938/8234/7517/12455
+CASE 7 PASS: dec=0 score0=322985 score1=144823 enc=2082 counts=12410/16754/18920/7537/6335/12844
+ALL 8 CASES PASS</code></pre>
+
+<p>判决序列 <code>1 1 1 1 0 0 0 0</code> 与设计期望完全一致。</p>
+
+<h3>5.2 第二层：板级外壳仿真 <span class="tag">通过</span></h3>
+
+<p>原工程<strong>没有</strong>针对板级外壳的测试台。本次补写 <code>tb_board_top</code>
+（编译时引入 <code>MMCME2_ADV</code> / <code>BUFG</code> 等 unisim 模型与 <code>glbl</code>），
+用于验证 ROM 寻址、自检状态机与 LED 映射：</p>
+
+<pre><code>done_all asserted after 46561240 ns (46 ms)
+cases done     = 8
+decisions seen = 1 1 1 1 0 0 0 0
+LED = 1010  (led0=busy led1=done_all led2=last_dec led3=pass==8)
+dut.pass_count = 8   dut.last_dec = 0
+=== BOARD TOP SELF-TEST PASS: 8/8, LED pattern exactly as documented ===</code></pre>
+
+<p>该层是必要的：<strong>板级缺陷只可能在此层暴露</strong>，见第 6 节。</p>
+
+<h3>5.3 第三层：综合与实现报告 <span class="tag">通过</span></h3>
+
+<table>
+  <tr><th>指标</th><th class="num">占用</th><th class="num">可用</th><th class="num">利用率</th><th>结论</th></tr>
+  <tr><td>Slice LUTs</td><td class="num">28,892</td><td class="num">133,800</td><td class="num">21.6%</td><td>余量充足</td></tr>
+  <tr><td>Slice Registers</td><td class="num">64,443</td><td class="num">267,600</td><td class="num">24.1%</td><td>余量充足</td></tr>
+  <tr><td>Block RAM Tile</td><td class="num">100</td><td class="num">365</td><td class="num">27.4%</td><td>余量充足</td></tr>
+  <tr><td>DSP48</td><td class="num">2</td><td class="num">740</td><td class="num">0.3%</td><td>—</td></tr>
+  <tr><td>Bonded IOB</td><td class="num">6</td><td class="num">285</td><td class="num">2.1%</td><td>6 个约束全部绑定成功</td></tr>
+</table>
+
+<table>
+  <tr><th>时序</th><th class="num">结果</th><th>判定</th></tr>
+  <tr><td>WNS（最差建立余量）</td><td class="num">+0.182 ns</td><td class="ok">满足</td></tr>
+  <tr><td>WHS（最差保持余量）</td><td class="num">+0.058 ns</td><td class="ok">满足</td></tr>
+  <tr><td>TNS / 失败端点</td><td class="num">0.000 ns / 0</td><td class="ok">0 个端点失败</td></tr>
+  <tr><td>时序检查端点总数</td><td class="num">196,952</td><td>—</td></tr>
+</table>
+
+<p>Vivado 时序报告原文：<code>All user specified timing constraints are met.</code></p>
+
+<p>DRC 检查<strong>无 critical 级违规</strong>，仅 2 条 DSP 流水线性能优化建议（非功能性问题）。
+估算片上功耗 0.909 W，结温 27.2 °C。</p>
+
+<h3>5.4 第四层：硬件下载与配置回读 <span class="tag">部分完成</span></h3>
+
+<p><strong>下载记录：</strong></p>
+<pre><code>DEVICE: xc7a200t_0  PART=xc7a200t  IDCODE=00010011011000110110000010010011  (bitstream: a200t)
+== PROGRAMMED: build/board/board_top.bit -> xc7a200t_0 ==</code></pre>
+
+<p><strong>配置状态回读</strong>（关键：不仅看命令是否报错，而是直接读器件内部配置状态寄存器）：</p>
+<pre><code>REGISTER.IR.BIT5_DONE  = 1        ← 配置完成标志
+REGISTER.CONFIG_STATUS = 01000000000100000111100111111100
+                           ↑ 最低位 bit0 = CRC_ERROR = 0  ← 配置数据校验无误</code></pre>
+
+<p><code>DONE = 1</code> 且 <code>CRC_ERROR = 0</code>，说明位流已完整、正确地载入 FPGA，
+配置过程无数据错误。</p>
+
+<div class="warn">
+  <strong>本层尚缺一项现场证据：</strong>8 例判决的实际正确性在硬件上通过 4 个 LED 呈现，
+  需人工目视确认并拍照留证（判读表见 5.5）。JTAG 在无调试核的情况下无法直接读出内部
+  <code>pass_count</code>。若需<strong>机器可读</strong>的硬件实测结果，可加 VIO 虚拟 I/O 核
+  重建位流，通过 JTAG 读取 <code>pass_count</code> 与 8 位判决串（见第 8 节）。
+</div>
+
+<h3>5.5 上板判读表（现场记录用）</h3>
+
+<table>
+  <tr><th>LED</th><th>引脚</th><th>含义</th><th>正常表现</th><th>本机实测</th></tr>
+  <tr><td>LED0</td><td>W7</td><td>核 busy</td><td>复位后亮约 47 ms 后熄灭</td><td class="pend">待填</td></tr>
+  <tr><td>LED1</td><td>Y7</td><td>8 例跑完</td><td>常亮</td><td class="pend">待填</td></tr>
+  <tr><td>LED2</td><td>Y8</td><td>末例判决</td><td>熄灭（第 7 例为负例）</td><td class="pend">待填</td></tr>
+  <tr><td>LED3</td><td>V9</td><td>pass_count == 8</td><td><strong>点亮 = 8/8 全对</strong></td><td class="pend">待填</td></tr>
+</table>
+
+<h2>6. 关键问题与修复</h2>
+
+<div class="bug">
+  <strong>发现并修复一个会导致上板功能永久失效的缺陷（原工程遗留）。</strong><br>
+  该缺陷在仿真中完全不显现，只有到手写板级测试台并核查综合日志后才暴露。
+</div>
+
+<h3>6.1 现象</h3>
+
+<p>原 <code>board_top.v</code> 将期望判决 ROM 声明为 <strong>1 位宽存储器</strong>：</p>
+
+<pre><code>reg       exp_rom [0:7];        // 原写法 —— 1 bit 宽
+reg [7:0] exp_rom [0:7];        // 修复后</code></pre>
+
+<p>Vivado 综合器对该写法<strong>只给一条 warning，然后整条初始化被静默丢弃</strong>：</p>
+
+<pre><code>INFO:    [Synth 8-3876] $readmem data file 'feat_all.mem' is read successfully
+WARNING: [Synth 8-2898] ignoring malformed $readmem task: invalid memory name   ← exp_dec.mem 被丢弃</code></pre>
+
+<h3>6.2 后果推演</h3>
+
+<p>位流中 <code>exp_rom</code> 全部为 0，而期望值为 <code>1,1,1,1,0,0,0,0</code>。
+因此前 4 例（判决应为 1）全部比对失败、后 4 例（判决应为 0）侥幸通过，
+<code>pass_count</code> 恒为 <strong>4</strong>，LED3（8/8 指示灯）<strong>永远不会点亮</strong>。</p>
+
+<h3>6.3 为什么长期未被发现</h3>
+
+<p><strong>RTL 仿真器可以正常处理 1 位宽存储器</strong>，因此工程自带的仿真一直 8/8 全过。
+这暴露了一个容易误判的认知：「仿真通过」<strong>不等于</strong> ROM 内容真的进入了位流。
+原工程说明也注明未在真实板卡上验证过，缺陷因此一直潜伏。</p>
+
+<h3>6.4 修复与验证</h3>
+
+<table>
+  <tr><th>判据（综合日志）</th><th class="num">修复前</th><th class="num">修复后</th></tr>
+  <tr><td><code>Synth 8-3876</code> 成功读取条数</td><td class="num">6</td><td class="num"><span class="ok">7</span></td></tr>
+  <tr><td><code>Synth 8-2898</code> 非法存储器条数</td><td class="num">1</td><td class="num"><span class="ok">0</span></td></tr>
+</table>
+
+<p>修复后 7 个 ROM 全部正确预置（含关键的 <code>exp_dec.mem</code>），板级仿真与核心仿真
+仍全部通过，说明修复未引入回归。</p>
+
+<div class="verdict">
+  <strong>可复用的排查准则：</strong>综合日志中每一个 <code>$readmemh</code> 都必须有一条对应的
+  <code>8-3876 read successfully</code>；出现任何 <code>8-2898 ignoring malformed</code> 都是
+  真实缺陷而非无害警告。
+</div>
+
+<h3>6.5 部署过程中排除的另一个环境故障</h3>
+
+<p>实现阶段曾出现<strong>无报错挂起</strong>：日志停在综合结束之后再无输出，进程存活但 CPU 时间
+几乎不增长，中间文件时间戳冻结。定位为<strong>系统盘剩余空间不足（约 4 GB）导致 Vivado 临时
+目录写满</strong>。将 <code>TEMP</code>/<code>TMP</code> 重定向至大容量分区后流程恢复正常
+（构建 44 分钟挂起 → 重定向后正常完成）。</p>
+
+<p class="sub">附注：该重定向仅适用于构建阶段；下载与回读阶段须使用默认临时目录，
+否则硬件服务器连接失败（<code>Labtools 27-3733</code>）。此差异已固化进一键脚本。</p>
+
+<h2>7. 可复现性（供老师独立核验）</h2>
+
+<p>全部流程均可用命令行完全复现，不需要人工点击 GUI：</p>
+
+<pre><code>REM 1) 探测 JTAG 上的实际器件（只读，不改变板子状态）
+一键上板.bat probe
+
+REM 2) 综合 + 实现 + 生成位流（约 60 分钟）
+一键上板.bat
+
+REM 3) 仅下载已有位流（约 30 秒）
+一键上板.bat program
+
+REM 4) 回读配置状态，确认 DONE = 1
+一键上板.bat verify</code></pre>
+
+<h3>7.1 证据文件索引</h3>
+
+<table>
+  <tr><th>编号</th><th>文件</th><th>内容</th></tr>
+  <tr><td>E1</td><td><code>evidence/01_核心仿真_8例结果.txt</code></td><td>核心 8 例判决与参考模型比对，全部 PASS</td></tr>
+  <tr><td>E2</td><td><code>evidence/02_板级外壳仿真结果.txt</code></td><td>板级外壳 8 例、pass_count=8、LED 模式</td></tr>
+  <tr><td>E3</td><td><code>evidence/03_ROM预置校验_修复后.txt</code></td><td>7 条 readmem 全部成功，malformed 为 0</td></tr>
+  <tr><td>E4</td><td><code>evidence/04_JTAG器件探测.txt</code></td><td>实测器件 XC7A200T 与 IDCODE</td></tr>
+  <tr><td>E5</td><td><code>evidence/05_下载记录.txt</code></td><td>位流下载成功记录</td></tr>
+  <tr><td>E6</td><td><code>evidence/06_DONE位回读.txt</code></td><td>DONE=1、CRC_ERROR=0 回读</td></tr>
+  <tr><td>E7</td><td><code>evidence/timing_board.rpt</code></td><td>完整时序报告（WNS/WHS/时钟摘要）</td></tr>
+  <tr><td>E8</td><td><code>evidence/util_board.rpt</code></td><td>资源利用率报告</td></tr>
+  <tr><td>E9</td><td><code>evidence/drc_board.rpt</code></td><td>DRC 检查报告（无 critical）</td></tr>
+  <tr><td>E10</td><td><code>evidence/power_board.rpt</code></td><td>功耗估算报告</td></tr>
+</table>
+
+<h3>7.2 交付物清单</h3>
+
+<table>
+  <tr><th>路径</th><th>说明</th></tr>
+  <tr><td><code>build/board/board_top.bit</code></td><td>最终位流（4.22 MB），已下载验证</td></tr>
+  <tr><td><code>rtl/board_top.v</code></td><td>板级顶层（含 ROM 缺陷修复）</td></tr>
+  <tr><td><code>rtl/snn2d_top.v</code> 等</td><td>加速器核心 RTL（原工程逻辑，未改动）</td></tr>
+  <tr><td><code>constraints/pins.xdc</code></td><td>达芬奇Pro 实际引脚约束</td></tr>
+  <tr><td><code>constraints/timing.xdc</code></td><td>50 MHz 输入时钟约束</td></tr>
+  <tr><td><code>scripts/*.tcl</code></td><td>构建 / 下载 / 回读 / 探测脚本</td></tr>
+  <tr><td><code>一键上板.bat</code></td><td>一键流程（四个子命令均实测可用）</td></tr>
+  <tr><td><code>README.md</code></td><td>完整技术说明与问题分析</td></tr>
+</table>
+
+<h2>8. 结论与后续可加强项</h2>
+
+<h3>已完成</h3>
+<ul>
+  <li>确认真实器件为 XC7A200T，确定正确 Vivado 器件字符串与封装差异</li>
+  <li>补齐达芬奇Pro 板级引脚约束，6 个端口全部绑定成功</li>
+  <li>修复原工程中导致上板功能失效的 1 位宽 ROM 缺陷</li>
+  <li>建立核心 + 板级两层仿真验证，均 8/8 通过</li>
+  <li>实现结果时序、资源、DRC 全部达标</li>
+  <li>位流成功下载，<code>DONE=1</code>、<code>CRC_ERROR=0</code></li>
+  <li>流程脚本化，可一键复现</li>
+</ul>
+
+<h3>建议补充的现场证据</h3>
+<ol>
+  <li><strong>LED 实拍照片</strong>（首选）：按 RESET 后拍摄板上 4 个 LED，LED1 与 LED3 同时点亮即为 8/8 全对。
+      这是最直观、最低成本的现场凭据。</li>
+  <li><strong>VIO 机器读数</strong>（可选）：在 <code>board_top</code> 中例化 VIO 核，暴露
+      <code>pass_count</code> 与 8 位判决串，即可通过 JTAG 直接读出硬件实测结果，
+      无需目视判读。代价是需重新实现（约 60 分钟）。</li>
+</ol>
+
+<div class="warn">
+  <strong>关于结论边界的说明：</strong>本报告可以确证的是——位流针对正确器件构建、
+  时序收敛、ROM 内容确实进入位流、位流已正确载入 FPGA。
+  至于「8 个测试用例在硬件上的判决结果为 8/8」，已有仿真层面的完整证据链
+  （同一套 RTL、同一份 <code>.mem</code> 数据，已逐字节核对一致），
+  但硬件现场的最终确认仍需 LED 目视或 VIO 读数二者之一。
+  建议如实向老师说明这一边界，而不是把仿真结论表述为硬件实测结论。
+</div>
+
+<p class="footer">
+本报告由部署流程自动生成 · 2026-11-24 · 全部数据来源于实际工具输出，未经手工修饰。
+</p>
+
+</body>
+</html>

@@ -42,8 +42,16 @@ module board_top (
     wire core_rst = ~rst_sync[2] | ~locked;
 
     // ---------------- test-vector ROMs ----------------
+    // NOTE: exp_rom must be a multi-bit memory.  A 1-bit memory
+    // (`reg exp_rom [0:7];`) is rejected by Vivado synthesis with only a
+    // warning, and the whole $readmemh is silently dropped:
+    //   WARNING: [Synth 8-2898] ignoring malformed $readmem task: invalid memory name
+    // The ROM then stays all-zero in the bitstream (expected 1,1,1,1,0,0,0,0),
+    // so the first four cases always fail and pass_count sticks at 4 — the
+    // 8/8 LED never lights.  Simulators load 1-bit memories fine, which is why
+    // this never showed up in xsim.  Keep it [7:0] and compare bit 0.
     reg [7:0] feat_rom [0:8191];
-    reg       exp_rom  [0:7];
+    reg [7:0] exp_rom  [0:7];
     initial begin
         $readmemh("feat_all.mem", feat_rom);
         $readmemh("exp_dec.mem",  exp_rom);
@@ -135,7 +143,7 @@ module board_top (
                 end
                 S_REC: begin
                     last_dec <= decision;
-                    if (decision == exp_rom[case_idx])
+                    if (decision == exp_rom[case_idx][0])
                         pass_count <= pass_count + 4'd1;
                     if (case_idx == 3'd7) begin
                         done_all <= 1'b1;
@@ -155,10 +163,15 @@ module board_top (
         end
     end
 
+    // Both the 领航者 ZYNQ-7020 and 达芬奇Pro boards drive their user LEDs
+    // active-high, so this defaults to 0.  Flip to 1 if a board turns out to
+    // light its LEDs on a low output (then ld[3] means "passed" when off).
+    localparam LED_ACTIVE_LOW = 1'b0;
+
     always @* begin
-        led[0] = busy;
-        led[1] = done_all;
-        led[2] = last_dec;
-        led[3] = (pass_count == 4'd8);
+        led[0] = busy                     ^ LED_ACTIVE_LOW;
+        led[1] = done_all                 ^ LED_ACTIVE_LOW;
+        led[2] = last_dec                 ^ LED_ACTIVE_LOW;
+        led[3] = (pass_count == 4'd8)     ^ LED_ACTIVE_LOW;
     end
 endmodule

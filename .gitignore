@@ -30,3 +30,8 @@ papers/*.txt
 # Temporary
 *.tmp
 *.bak
+
+# Davinci Pro deploy: build outputs (regenerate with scripts/*.tcl)
+deploy_davinci_pro/build/
+deploy_davinci_pro/vivado_tmp/
+sim/board_sim/

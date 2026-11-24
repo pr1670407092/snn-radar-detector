@@ -1,0 +1,3 @@
+DEVICE: xc7a200t_0  PART=xc7a200t  IDCODE=00010011011000110110000010010011  (bitstream: a200t)
+== PROGRAMMED: G:/2026qimo/snn/deploy_dfp/build/board/board_top.bit -> xc7a200t_0 ==
+== Press RESET on the board; LED3 (V9) on = 8/8 pass ==
