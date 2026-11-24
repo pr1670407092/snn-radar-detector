@@ -1,8 +1,8 @@
-# SNN 雷达目标检测加速器（ZYNQ-7020 / 正点原子领航者）
+# SNN 雷达目标检测加速器（ZYNQ-7020；DaVinci Pro 上板验证）
 
 > 1D 三层 MLP（低延迟、bit-exact）+ 2D 六层时频 RSN（99.72%、128-lane 100 MHz 2D 引擎）。
 
-面向“雷达回波有无目标”的二分类任务，在 **XC7Z020-2CLG400** 上完成了算法、1D/2D RTL、综合实现、技术报告和独立调研。
+面向“雷达回波有无目标”的二分类任务，在 **XC7Z020-2CLG400** 上完成了算法、1D/2D RTL、综合实现、技术报告和独立调研；同一套 2D RTL 已在正点原子 **达芬奇Pro XC7A200T-2FBG484I** 上完成 JTAG 上板自检（8/8，DONE=1）。
 
 ## 核心结果（先看这里）
 
@@ -13,6 +13,7 @@
 | **2D RTL（均衡版，最新）** | 1 tap + **192 字 FF 权重缓存**；LUT **29,048（54.6%）**、FF **64,633（60.8%）**、BRAM **98（70%）**、**0.992 W**；WNS **+0.173 ns**；**5.82 ms/次**；8/8 决策 |
 | **低延迟：1D 8-bit** | 512→256→128→2，164,096 突触，**96.64%**，PD 94.67% / PFA 1.44%，**1.77 ms**，BRAM 36.5/140；RTL 与 Python **bit-exact 8/8** |
 | **容量实验：4-bit** | 512→704→704→2，857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140；仅容量实验 |
+| **上板验证** | 达芬奇Pro **XC7A200T-2FBG484I**；`DONE=1`、`CRC_ERROR=0`、WNS **+0.182 ns**、8/8 决策；LUT 28,890/133,800、FF 64,443、BRAM 100/365 |
 
 - 1D 三版 RTL（512-512-512 / 512-256-128 / 512-704-704）均与 Python 整数模型逐计数一致；2D RTL **8/8 决策正确**，但逐计数/FC 分数尚未全用例 bit-exact：case0 的 L1 精确、L2–L5 差 <0.2%、L6 约 1.6%，其余随机例因跨 t 行缓冲边角出现 1–14% 计数漂移；决策不受影响，bit-exact 是收尾项。
 - 混合方案：MF + 1D CNN + 32-32-2 SNN 头 97.94%（SNN 只有 2,112 突触，不算 SNN 主力，见 1.3）。
@@ -20,6 +21,7 @@
 - **技术报告（16 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
 - **论文（IEEE Trans 中文格式，5 页）**：[docs/paper.html](docs/paper.html) / [docs/paper.pdf](docs/paper.pdf)（TFG-RSN + 7020 加速器，含 18 篇参考文献）。
 - **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
+- **上板验证 fork**：<https://github.com/qix82922-blip/snn-radar-detector>（分支 `davinci-pro-200t-deploy`，含验收材料）
 
 > 状态：已完成数据合成、ANN/SNN 训练、整数转换、1D/2D RTL、Vivado xsim 仿真、综合/实现（out-of-context）。
 > **已上板**：2D 均衡版在正点原子 **达芬奇Pro（XC7A200T-2FBG484I）** 上完成 JTAG 下载并跑通自检
