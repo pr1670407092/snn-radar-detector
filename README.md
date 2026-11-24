@@ -20,6 +20,7 @@
 - **独立调研报告（9 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
 - **技术报告（16 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
 - **论文（IEEE Trans 中文格式，5 页）**：[docs/paper.html](docs/paper.html) / [docs/paper.pdf](docs/paper.pdf)（TFG-RSN + 7020 加速器，含 18 篇参考文献）。
+- **数据集说明（6 页）**：[docs/dataset_report.html](docs/dataset_report.html) / [docs/dataset_report.pdf](docs/dataset_report.pdf)（简单集/难集参数、TFG、划分统计、复现与局限）。
 - **GitHub**：<https://github.com/pr1670407092/snn-radar-detector>
 - **上板验证 fork**：<https://github.com/qix82922-blip/snn-radar-detector>（分支 `davinci-pro-200t-deploy`，含验收材料）
 

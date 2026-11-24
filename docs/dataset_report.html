@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>雷达目标检测合成数据集说明（TFG-Simple / TFG-Hard）</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { margin:0; color:#111; font-family:"Times New Roman","SimSun","宋体",serif;
+         font-size:9.8pt; line-height:1.55; text-align:justify; }
+  h1 { font-family:"SimHei","黑体",sans-serif; font-size:21pt; text-align:center;
+       margin:0 0 2mm 0; line-height:1.3; }
+  .sub { text-align:center; font-size:10pt; color:#334155; margin:0 0 1.5mm 0; }
+  .meta { text-align:center; font-size:8.6pt; color:#64748b; margin:0 0 6mm 0; }
+  h2 { font-family:"SimHei","黑体",sans-serif; font-size:13pt; margin:5.5mm 0 2mm 0;
+       border-left:3.5pt solid #0f766e; padding-left:3mm; break-after:avoid; }
+  h3 { font-family:"SimHei","黑体",sans-serif; font-size:10.5pt; margin:3.2mm 0 1.3mm 0;
+       break-after:avoid; }
+  p { margin:0 0 2mm 0; text-indent:2em; }
+  p.noindent { text-indent:0; }
+  .lead { font-size:10.4pt; color:#0f172a; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin:3mm 0 6mm 0; }
+  .kpi { border:1px solid #cbd5e1; border-top:3pt solid #0f766e; border-radius:2mm;
+         padding:3mm; background:#f8fafc; text-align:center; break-inside:avoid; }
+  .kpi .v { font-family:"SimHei","黑体",sans-serif; font-size:17pt; color:#0f766e; }
+  .kpi .l { font-size:8.4pt; color:#334155; margin-top:1mm; }
+  .kpi .s { font-size:7.6pt; color:#64748b; margin-top:1mm; }
+  .callout { border-left:3.5pt solid #0f766e; background:#f0fdfa; padding:3mm 4mm;
+             margin:3mm 0; font-size:9.2pt; break-inside:avoid; }
+  .warn { border-left-color:#b45309; background:#fffbeb; }
+  .bad { border-left-color:#b91c1c; background:#fef2f2; }
+  table { width:100%; border-collapse:collapse; font-size:8.2pt; margin:2mm 0 3.5mm 0;
+          break-inside:avoid; }
+  caption { caption-side:top; text-align:center; font-family:"SimHei","黑体",sans-serif;
+            font-size:9pt; margin-bottom:1.4mm; }
+  th,td { border-top:.4pt solid #64748b; border-bottom:.4pt solid #64748b;
+          padding:1.5mm 2mm; text-align:center; vertical-align:middle; }
+  th { background:#e2e8f0; font-family:"SimHei","黑体",sans-serif; font-weight:400; }
+  td.l,th.l { text-align:left; }
+  figure { margin:3mm 0 4mm 0; text-align:center; break-inside:avoid; }
+  figure img { width:100%; height:auto; border:1px solid #e2e8f0; }
+  figcaption { font-size:8.3pt; color:#334155; margin-top:1.5mm; line-height:1.4; }
+  code { font-family:Consolas,"Courier New",monospace; font-size:8.6pt; background:#f1f5f9;
+         padding:0 1mm; }
+  pre { font-family:Consolas,"Courier New",monospace; font-size:8.2pt; line-height:1.42;
+        background:#0f172a; color:#e2e8f0; padding:3.5mm 4mm; border-radius:2mm;
+        overflow:auto; white-space:pre-wrap; margin:2mm 0 4mm 0; break-inside:avoid; }
+  ul,ol { margin:1mm 0 3mm 0; padding-left:7mm; }
+  li { margin:0 0 1.2mm 0; }
+  .small { font-size:8.4pt; color:#475569; }
+  .tag { display:inline-block; font-size:7.6pt; padding:.4mm 1.6mm; border-radius:1mm;
+         background:#ccfbf1; color:#115e59; margin-left:2mm; }
+  .warn-tag { background:#fef3c7; color:#92400e; }
+  .footer { margin-top:8mm; border-top:.5pt solid #cbd5e1; padding-top:2mm;
+            font-size:8pt; color:#64748b; text-align:center; }
+  .pagebreak { break-before:page; }
+</style>
+</head>
+<body>
+
+<h1>雷达目标检测合成数据集说明</h1>
+<div class="sub">TFG-Simple / TFG-Hard：LFM 回波、海杂波与 STFT 时频图</div>
+<div class="meta">版本 1.0　·　2026-11-24　·　配套代码：<code>python/radar_data.py</code>、<code>python/tf_data.py</code>、<code>python/tf_data_hard.py</code></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="v">2</div><div class="l">数据集</div><div class="s">简单集 / 难集</div></div>
+  <div class="kpi"><div class="v">36k</div><div class="l">每套样本</div><div class="s">24k / 4k / 8k</div></div>
+  <div class="kpi"><div class="v">512</div><div class="l">每脉冲复数采样</div><div class="s">50 MHz 基带</div></div>
+  <div class="kpi"><div class="v">32×32</div><div class="l">TFG 尺寸</div><div class="s">uint8，[0,255]</div></div>
+</div>
+
+<h2>1. 数据集定位</h2>
+<p class="lead">这是我们自己用脚本生成的<strong>合成雷达回波数据集</strong>，不是从网上直接下载的公开数据集，也不是 IPIX 原始数据。任务只有一类：判断一段 512 点复数回波里“有/无目标”。</p>
+<p>生成器参考了雷达信号处理中的标准模型：LFM 发射信号、匹配滤波/FFT 频域处理、AR(1) 慢杂波、K 分布重尾杂波、海尖峰、窄带干扰、随机缺失和 chirp rate 失配。它参考了 GRSL 2025 RSN 的“时频图 + 脉冲残差网络 + 膜电位虚警控制”思路，但<strong>数据样本、标签、噪声实现全部由本项目生成</strong>，没有使用论文或网盘的样本。</p>
+<div class="callout warn">
+<strong>它不是什么：</strong>不是实测海杂波，不是 IPIX，不是通用雷达检测 benchmark。简单集上的 99.72% 不能直接和 IPIX 上的 PD=0.8266 对比；难集更接近真实失配场景，但仍然是合成的。它的价值是：可控 SNR/CNR、可控杂波/干扰、可复现、能逐项做消融，适合算法与 RTL 联调，而不是替代真实外场数据。
+</div>
+
+<h2>2. 生成链路</h2>
+<figure>
+<img src="dataset_pipeline.png" alt="数据集生成链路">
+<figcaption>图 1　数据集生成链路：LFM 回波合成 → STFT 64 点/hop 16 → 对数 + median/MAD 归一化 → 32×32 uint8 TFG。简单集与难集共用同一 TFG 前端，只改变回波层的杂波/干扰参数。</figcaption>
+</figure>
+
+<p>复基带回波模型为：</p>
+<p class="noindent" style="text-align:center;font-size:10.2pt;margin:1mm 0 2.5mm 0;">
+<i>rx</i>[<i>n</i>] = <i>y</i> · <i>a</i> · <i>s</i>[<i>n</i>−<i>d</i>] · exp(<i>j</i>2π<i>f</i><sub>d</sub><i>n</i>/<i>F</i><sub>s</sub>) · exp(<i>jφ</i>) + <i>c</i>[<i>n</i>] + <i>w</i>[<i>n</i>]
+</p>
+<p class="noindent" style="text-align:center;font-size:10.2pt;margin:0 0 2.5mm 0;">
+<i>s</i>(<i>t</i>) = exp(<i>j</i>π<i>Kt</i><sup>2</sup>),　0 ≤ <i>t</i> ≤ <i>T</i><sub>p</sub>,　<i>K</i> = <i>B</i>/<i>T</i><sub>p</sub>
+</p>
+<p>其中 <i>y</i>∈{0,1} 是标签，<i>a</i> 是目标幅度，<i>d</i> 是时延，<i>f</i><sub>d</sub> 是多普勒，<i>φ</i> 是随机初相，<i>c</i>[<i>n</i>] 是杂波，<i>w</i>[<i>n</i>] 是复高斯噪声。负样本令 <i>y</i>=0，只保留杂波+噪声。</p>
+
+<h2>3. 雷达与目标参数</h2>
+<table>
+<caption>表 1　雷达/目标参数（简单集与难集共用）</caption>
+<thead><tr><th class="l">参数</th><th>符号/公式</th><th>值</th><th class="l">说明</th></tr></thead>
+<tbody>
+<tr><td class="l">采样率</td><td><i>F</i><sub>s</sub></td><td>50 MHz</td><td class="l">复基带，1 采样 = 20 ns</td></tr>
+<tr><td class="l">每脉冲采样点</td><td><i>N</i></td><td>512</td><td class="l">约 10.24 µs 记录</td></tr>
+<tr><td class="l">LFM 脉宽</td><td><i>T</i><sub>p</sub></td><td>10 µs</td><td class="l">其余为噪声/杂波</td></tr>
+<tr><td class="l">LFM 带宽</td><td><i>B</i></td><td>20 MHz</td><td class="l">距离分辨率约 7.5 m（理想）</td></tr>
+<tr><td class="l">调频率</td><td><i>K</i>=<i>B</i>/<i>T</i><sub>p</sub></td><td>2×10<sup>12</sup> Hz/s</td><td class="l">chirp 斜率</td></tr>
+<tr><td class="l">目标时延</td><td><i>d</i></td><td>0–160 samples</td><td class="l">约 0–3.2 µs</td></tr>
+<tr><td class="l">多普勒</td><td><i>f</i><sub>d</sub></td><td>±80 kHz</td><td class="l">均匀分布</td></tr>
+<tr><td class="l">初相</td><td><i>φ</i></td><td>[0, 2π)</td><td class="l">均匀分布</td></tr>
+<tr><td class="l">幅度起伏</td><td><i>a</i></td><td>log-normal，σ=1.5 dB（简单）/2.0 dB（难）</td><td class="l">相对噪声功率</td></tr>
+<tr><td class="l">SNR</td><td>—</td><td>−7…3 dB（简单）；−10…0 dB（难）</td><td class="l">逐样本均匀采样</td></tr>
+</tbody>
+</table>
+<p class="small">SNR 定义为目标回波功率与噪声功率之比（幅度按 10<sup>SNR/20</sup> 缩放，噪声为单位方差复高斯）。注意：训练/验证/测试都按上述范围采样，测试集没有单独改 SNR 分布。</p>
+
+<h2>4. 杂波、干扰与失配</h2>
+<table>
+<caption>表 2　简单集与难集的杂波/干扰参数</caption>
+<thead><tr><th class="l">成分</th><th>简单集</th><th>难集</th><th class="l">作用</th></tr></thead>
+<tbody>
+<tr><td class="l">AR(1) 慢杂波</td><td>ρ=0.94–0.995</td><td>ρ=0.95–0.998</td><td class="l">低通、时间相关，模拟海/地杂波</td></tr>
+<tr><td class="l">慢正弦杂波</td><td>3 个，0.3–6 MHz</td><td>3 个，0.3–8 MHz</td><td class="l">窄带尖峰，模拟杂波条纹</td></tr>
+<tr><td class="l">K 分布重尾</td><td>—</td><td>gamma texture shape=0.7；65% AR + 35% K</td><td class="l">重尾、非高斯，检验鲁棒性</td></tr>
+<tr><td class="l">CNR</td><td>8–16 dB</td><td>8–18 dB</td><td class="l">杂波功率相对噪声</td></tr>
+<tr><td class="l">海尖峰</td><td>—</td><td>概率 5%，长度 2–8 点，幅度 12–24 dB，频率 0.5–12 MHz</td><td class="l">短时强散射</td></tr>
+<tr><td class="l">窄带干扰</td><td>—</td><td>概率 15%，幅度 4–12 dB，频率 1–12 MHz</td><td class="l">非目标窄带谱线</td></tr>
+<tr><td class="l">随机缺失</td><td>—</td><td>概率 10%，长度 N/20–N/5（约 25–102 点）</td><td class="l">前端丢数/遮挡</td></tr>
+<tr><td class="l">chirp 失配</td><td>—</td><td><b>±2%</b>（代码 <code>mismatch=0.02</code>）</td><td class="l">目标调频率与参考不一致</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>参数口径说明：</strong><code>tf_data_hard.py</code> 顶部 docstring 写的是 ±4%，但实际生成参数是 <code>mismatch=0.02</code>，即 <b>±2%</b>；本报告以代码实际值为准。若后续要复现 docstring 的 ±4%，改这一行并重新生成数据即可。
+</div>
+
+<h2>5. STFT 时频图（TFG）</h2>
+<table>
+<caption>表 3　TFG 前端参数</caption>
+<thead><tr><th class="l">参数</th><th>值</th><th class="l">说明</th></tr></thead>
+<tbody>
+<tr><td class="l">STFT 窗长</td><td>64 点</td><td class="l">Hann 窗（SciPy 默认）</td></tr>
+<tr><td class="l">hop</td><td>16（<code>noverlap=48</code>）</td><td class="l">75% 重叠</td></tr>
+<tr><td class="l">FFT 点数</td><td>64</td><td class="l">取前 32 个频点（0…Fs/2）</td></tr>
+<tr><td class="l">帧数</td><td>29</td><td class="l">(512−64)/16+1=29，边缘 pad 到 32</td></tr>
+<tr><td class="l">输出</td><td>32×32</td><td class="l">32 频点 × 32 帧</td></tr>
+<tr><td class="l">幅度</td><td>20 log<sub>10</sub>(|STFT|+10<sup>−12</sup>)</td><td class="l">dB 域</td></tr>
+<tr><td class="l">归一化</td><td>全图 median/MAD</td><td class="l">稳健 z-score，抑制绝对能量</td></tr>
+<tr><td class="l">裁剪/量化</td><td>z∈[−3,3] → uint8</td><td class="l">(z+3)/6×255，四舍五入</td></tr>
+</tbody>
+</table>
+<figure>
+<img src="dataset_examples.png" alt="简单集/难集 TFG 示例">
+<figcaption>图 2　测试集样例。上排为简单集，下排为难集；左列为有目标，右列为无目标。简单集能看到明显的 chirp 斜线；难集的目标线被 K 杂波/尖峰/干扰掩盖，单看一张图很难分辨，这正是难集的价值。</figcaption>
+</figure>
+
+<h2>6. 数据规模、划分与统计</h2>
+<table>
+<caption>表 4　划分与标签统计</caption>
+<thead><tr><th class="l">数据集/划分</th><th>样本数</th><th>正样本</th><th>负样本</th><th>正样本比例</th><th>SNR / dB</th><th>CNR / dB</th><th>像素均值/标准差</th></tr></thead>
+<tbody>
+<tr><td class="l">简单 train</td><td>24,000</td><td>11,946</td><td>12,054</td><td>49.78%</td><td>−7…3（均值 −2.0）</td><td>8…16（生成用）</td><td>137.5 / 55.9</td></tr>
+<tr><td class="l">简单 val</td><td>4,000</td><td>1,980</td><td>2,020</td><td>49.50%</td><td>−7…3（−2.0）</td><td>8…16</td><td>137.5 / 56.0</td></tr>
+<tr><td class="l">简单 test</td><td>8,000</td><td>3,962</td><td>4,038</td><td>49.53%</td><td>−7…3（−2.0）</td><td>8…16</td><td>137.5 / 56.0</td></tr>
+<tr><td class="l">难 train</td><td>24,000</td><td>11,946</td><td>12,054</td><td>49.78%</td><td>−10…0（−5.0）</td><td>8…18（13.0）</td><td>130.3 / 51.0</td></tr>
+<tr><td class="l">难 val</td><td>4,000</td><td>2,002</td><td>1,998</td><td>50.05%</td><td>−10…0（−5.0）</td><td>8…18（13.1）</td><td>130.3 / 51.1</td></tr>
+<tr><td class="l">难 test</td><td>8,000</td><td>4,010</td><td>3,990</td><td>50.13%</td><td>−10…0（−5.0）</td><td>8…18（13.0）</td><td>130.2 / 51.0</td></tr>
+<tr><td class="l">1D 512（test）</td><td>8,000</td><td>3,962</td><td>4,038</td><td>49.53%</td><td>−7…3（−2.0）</td><td>8…16（12.0）</td><td>126.7 / 50.2</td></tr>
+</tbody>
+</table>
+<p class="small">简单集/难集均为 24,000/4,000/8,000；测试集 8,000 用于报告中的准确率/PD/PFA/AUC。1D 基线使用 512 点回波的 256 个正频率 FFT 幅度 bin，标签与简单集同源。</p>
+
+<figure>
+<img src="dataset_distributions.png" alt="SNR/CNR 分布">
+<figcaption>图 3　测试集 SNR/CNR 分布。简单集 SNR 覆盖 −7…3 dB；难集整体下移 5 dB，并把 CNR 上限提高到 18 dB。分布是逐样本均匀采样，不是按类别分开。</figcaption>
+</figure>
+
+<h2>7. 难度设计与模型结果</h2>
+<p>简单集的目标 chirp 在 TFG 中是一条清晰的斜线，2D 卷积很容易利用；难集把目标埋进 K 重尾杂波、海尖峰、窄带干扰和缺失段里，并把 SNR 整体压低 5 dB，因此它检验的是“能不能在失配/强杂波下保住检测”，而不是“能不能拟合合成纹理”。</p>
+<table>
+<caption>表 5　同一 TFG 前端下的模型结果（测试集 8,000）</caption>
+<thead><tr><th class="l">模型</th><th>简单集准确率</th><th>简单集 PD / PFA</th><th>简单集 AUC</th><th>难集准确率</th><th>难集 AUC</th></tr></thead>
+<tbody>
+<tr><td class="l">2D ANN 上界</td><td>99.83%</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td class="l"><b>TFG-RSN 6 层（float）</b></td><td><b>99.72%</b></td><td><b>99.67 / 0.22%</b></td><td><b>0.9998</b></td><td><b>76.89%</b></td><td><b>0.8441</b></td></tr>
+<tr><td class="l">TFG-RSN 6 层（int8）</td><td>99.62%</td><td>99.70 / 0.45%</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td class="l">TFG-RSN 8 层</td><td>99.49%</td><td>—</td><td>—</td><td>76.98%</td><td>0.8397</td></tr>
+<tr><td class="l">TFG-RSN width24</td><td>99.61%</td><td>—</td><td>—</td><td>76.68%</td><td>0.8429</td></tr>
+<tr><td class="l">1D 8-bit 256-128</td><td>96.64%</td><td>94.67 / 1.44%</td><td>0.9943</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+<p>难集在 PFA=10<sup>−2</sup> 时 PD：6 层 46.7%、8 层 46.1%、width24 48.0%。<strong>加层/加宽在简单集和难集都没有明显收益</strong>，说明简单集已经饱和，难集瓶颈在数据分布/特征，而不是网络容量。这也是为什么后续硬件工作把重点放在 128-lane 引擎与资源/时序，而不是继续堆层。</p>
+
+<h2>8. 复现方式</h2>
+<p>数据生成只依赖 NumPy/SciPy；脚本在 <code>python/</code>，默认参数与仓库中的数据一致。</p>
+<pre># 简单集：24k/4k/8k，SNR -7..3 dB，CNR 8..16 dB
+python python/tf_data.py --train 24000 --val 4000 --test 8000 \
+    --seed 2027 --out data/radar_tf.npz
+
+# 难集：24k/4k/8k，SNR -10..0 dB，CNR 8..18 dB，K 杂波/尖峰/干扰/缺失/失配
+python python/tf_data_hard.py --train 24000 --val 4000 --test 8000 \
+    --seed 2027 --out data/radar_tf_hard.npz</pre>
+<p class="small">1D 基线由 <code>python/radar_data.py</code> 生成（256 个正频率 FFT bin，种子 20261123）。数据文件：<code>data/radar_tf.npz</code>（约 32.7 MB）、<code>data/radar_tf_hard.npz</code>（约 33.8 MB）、<code>data/radar512.npz</code>（约 17.5 MB）。</p>
+
+<h2>9. 局限与使用注意</h2>
+<ul>
+<li><b>合成，不是实测：</b>没有 IPIX 原始样本、没有外场海杂波、没有真实天线/接收机失真；99.72% 不能直接和 IPIX 的 PD=0.8266 比。</li>
+<li><b>难集仍是合成：</b>K 分布、海尖峰、干扰、缺失都是按参数生成的，不是从实测数据估计出来的；它能暴露鲁棒性问题，但不能替代真实数据。</li>
+<li><b>单脉冲、单通道：</b>没有阵列/角度、没有多帧跟踪、没有距离-多普勒 2D 处理；只做“一段回波有无目标”。</li>
+<li><b>类别先验 50/50：</b>不是真实场景的目标先验；PFA/PD 是在平衡测试集上统计的。</li>
+<li><b>无数据增强：</b>train/val/test 由同一 RNG 顺序独立生成，未做 mixup/加噪等增强；也没有做样本级去重，因为合成样本没有真实采集 ID。</li>
+<li><b>参数口径：</b>难集 chirp 失配实际为 ±2%（代码 <code>mismatch=0.02</code>），docstring 的 ±4% 是旧描述；以代码/数据为准。</li>
+<li><b>RTL 自检只用 8 例：</b><code>deploy/data/feat_all.mem</code> 是从简单测试集选的 8 个向量，用于上板自检，不代表完整测试集。</li>
+</ul>
+
+<h2>10. 文件清单与速查</h2>
+<table>
+<caption>表 6　数据集相关文件</caption>
+<thead><tr><th class="l">文件</th><th>大小</th><th class="l">内容</th></tr></thead>
+<tbody>
+<tr><td class="l"><code>data/radar_tf.npz</code></td><td>32.7 MB</td><td class="l">简单集：x_train/val/test (N,32,32) uint8，y、snr</td></tr>
+<tr><td class="l"><code>data/radar_tf_hard.npz</code></td><td>33.8 MB</td><td class="l">难集：x、y、snr、cnr；K 杂波/尖峰/干扰/缺失/失配</td></tr>
+<tr><td class="l"><code>data/radar512.npz</code></td><td>17.5 MB</td><td class="l">1D 基线：x (N,512) uint8，y、snr、cnr</td></tr>
+<tr><td class="l"><code>python/radar_data.py</code><br><code>python/tf_data.py</code><br><code>python/tf_data_hard.py</code></td><td>—</td><td class="l">回波生成、简单集 TFG、难集 TFG</td></tr>
+<tr><td class="l"><code>docs/dataset_pipeline.png</code><br><code>docs/dataset_examples.png</code><br><code>docs/dataset_distributions.png</code></td><td>—</td><td class="l">生成链路、正负样本、SNR/CNR 分布</td></tr>
+<tr><td class="l"><code>deploy/data/feat_all.mem</code></td><td>32 KB</td><td class="l">8×1024 字节上板自检向量（来自简单测试集）</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>一句话总结：</strong>这是“自建、可控、可复现”的 LFM + 杂波合成数据集；简单集用来验证链路/精度，难集用来暴露鲁棒性瓶颈。它适合做算法/硬件联调和消融，但真实部署前必须补 IPIX 或实测海杂波。
+</div>
+
+<div class="footer">SNN 雷达目标检测项目 · 数据集说明 v1.0 · 2026-11-24 · 生成脚本与数据均在仓库 <code>snn-radar-detector</code> 中</div>
+
+</body>
+</html>
