@@ -17,7 +17,7 @@
 
 - 1D 三版 RTL（512-512-512 / 512-256-128 / 512-704-704）均与 Python 整数模型逐计数一致；2D RTL **8/8 决策正确**，但逐计数/FC 分数尚未全用例 bit-exact：case0 的 L1 精确、L2–L5 差 <0.2%、L6 约 1.6%，其余随机例因跨 t 行缓冲边角出现 1–14% 计数漂移；决策不受影响，bit-exact 是收尾项。
 - 混合方案：MF + 1D CNN + 32-32-2 SNN 头 97.94%（SNN 只有 2,112 突触，不算 SNN 主力，见 1.3）。
-- **独立调研报告（9 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
+- **独立调研报告（10 页）**：[docs/survey.html](docs/survey.html) / [docs/survey.pdf](docs/survey.pdf)（雷达 SNN、QCFS/PASCAL/SEW、7020 硬件、参考文献与证据边界）。
 - **技术报告（16 页）**：[docs/report.html](docs/report.html) / [docs/report.pdf](docs/report.pdf)（含 9.9 算法、9.10 100 MHz RTL）。
 - **论文（IEEE Trans 中文格式，5 页）**：[docs/paper.html](docs/paper.html) / [docs/paper.pdf](docs/paper.pdf)（TFG-RSN + 7020 加速器，含 18 篇参考文献）。
 - **数据集说明（6 页）**：[docs/dataset_report.html](docs/dataset_report.html) / [docs/dataset_report.pdf](docs/dataset_report.pdf)（简单集/难集参数、TFG、划分统计、复现与局限）。
@@ -648,17 +648,44 @@ archive/    mf_mlp_experiment/radar_mf.npz（MF range profile 数据）
 
 ---
 
-## 9. 下一步（纯 PL 上板 / 榨干）
+## 9. 上板验证与下一步
 
-当前 RTL 的接口是“512 字节特征写端口 + start/busy/done + 计数/判决输出”，
-仿真和综合已完成。PS/DDR 等 PS 端资源不在本次范围，上板只做 PL：
+### 9.1 已上板：达芬奇Pro XC7A200T
 
-1. **特征源**：片上 512 点 FFT + log + median/MAD 归一化，或外部简单接口预装特征。
-2. **约束/引脚**：50 MHz PL 时钟、复位；生成 bitstream，上板实测延迟/功耗。
-3. **实测**：真实雷达/回波数据、功耗、误报率；必要时重新校准阈值。
-4. **性能/容量**：8-bit 256-128 效率版已完成（推荐，见 1.2）；混合方案（1.3）已试验。
-   **时频 RSN（1.5）算法已验证 99.72%，128 lane/100 MHz 2D 引擎已完成（5.01 ms，
-   见 1.6）**。下一步是跨 t 行缓冲 bit-exact、事件驱动（估算 0.79 ms）和上板。
-   如果暂时不做 2D 引擎：保留 8-bit 256-128，或做 QCFS/PASCAL 1D spiking CNN。
-5. **结果读出**：简单 PL 寄存器 / UART / ILA（可选）。
-6. **时频前端**：片上 STFT（64 点、hop 16）+ log + median/MAD；或 PS 预处理后写 1,024 字节 TFG。
+2D 均衡版已经通过 **JTAG 实际下载**到正点原子 **达芬奇Pro（XC7A200T-2FBG484I）**，不是只做仿真：
+
+- bitstream：`deploy_davinci_pro/build/board/board_top.bit`
+- 配置回读：`DONE=1`、`CRC_ERROR=0`
+- 100 MHz 实现：**WNS +0.182 ns、WHS +0.058 ns**
+- 自检：8 个测试向量 **8/8 判决**（`pass_count=8`，LED=1010）
+- 8 例约 46–47 ms（约 5.8 ms/例）
+- 器件占用：LUT 28,890/133,800（21.6%）、FF 64,443/267,600（24.1%）、BRAM 100/365（27.4%）
+
+部署与验收材料：
+
+- [deploy_davinci_pro/README.md](deploy_davinci_pro/README.md)
+- [deploy_davinci_pro/验收材料/验收报告.html](deploy_davinci_pro/验收材料/验收报告.html)
+- [deploy/](deploy/)：ZYNQ-7020 版部署包（引脚模板未填，尚未上 7020 实板）
+
+> 上板时修掉了一个关键 bug：`exp_rom` 写成 1-bit memory 时 Vivado 会静默丢弃 `$readmemh`，位流里期望判决全 0，前 4 例必错、`pass_count` 卡在 4。已改成 8-bit memory，并合并进 main。
+
+### 9.2 ZYNQ-7020（领航者）
+
+7020 版本仍是 **OOC 综合/实现 + xsim 8/8**，没有 7020 实板；`deploy/` 里已准备好 RTL、权重、8 例 ROM、MMCM 和构建/下载脚本，只差按领航者原理图填 `deploy/constraints/pins.xdc`。有板后：
+
+1. 填 `clk50`、`rst_n`、`led[3:0]` 引脚；
+2. 跑 `deploy/scripts/build_board.tcl` 生成 bitstream；
+3. 跑 `deploy/scripts/program_board.tcl`，按复位后应看到 `led[1]`、`led[3]` 亮（8/8）。
+
+预期资源：LUT 约 30.9K、FF 约 64.4K、BRAM 约 100；100 MHz WNS 以实际实现报告为准。
+
+### 9.3 还没做的
+
+1. **真实数据**：IPIX/实测海杂波/外场回波；当前是合成 LFM+杂波，99.72% 不能直接对标 IPIX。
+2. **事件驱动卷积**：0.79 ms 是按平均脉冲率的估算，尚未 RTL 实现。
+3. **2D bit-exact**：跨 t 行缓冲仍有边角差异；1D 三版已 bit-exact。
+4. **片上 STFT/FFT**：当前特征由外部写端口预装；下一步做 64 点 STFT + log + median/MAD。
+5. **T=8 / 难集继续**：难集 76.89%，加层/加宽无收益；优先特征/预处理与真实数据。
+6. **功耗实测**：当前 0.992 W 是 Vivado vectorless 估算；200T 上板功耗未单独测量。
+
+如果暂时不做 2D 引擎：保留 8-bit 256-128 低延迟版（1.77 ms），或做 QCFS/PASCAL 1D spiking CNN。

@@ -590,7 +590,7 @@
         <li><strong>幅度谱丢相位：</strong>没有做相干积累/匹配滤波；低 SNR 性能受限。完整做法是时域匹配滤波或频域 <code>R(f)S*(f)</code> + IFFT。</li>
         <li><strong>不是硬实时：</strong>5.6 ms/次对应约 179 次/s，不适合 100 µs PRI 的逐脉冲实时处理；适合低重频、离线或后续跨脉冲流水。</li>
         <li><strong>特征提取在片外：</strong>FFT、log、median/MAD 归一化当前由 Python 离线完成；上板可在 PL 内做 512 点 FFT（PS/DDR 不在本次范围）。</li>
-        <li><strong>时序/功耗为 OOC 估算：</strong>尚未上板，缺少真实时钟、引脚和翻转率。</li>
+        <li><strong>时序/功耗口径：</strong>ZYNQ-7020 的时序/功耗仍是 OOC 估算；同一 2D 均衡版已在达芬奇Pro XC7A200T 上 JTAG 上板验证（DONE=1、8/8、WNS +0.182 ns），但 200T 的板级功耗未单独测量。</li>
       </ul>
 
       <h3>8.2 为什么仍然是有意义的</h3>
@@ -631,16 +631,17 @@
         <strong>建议顺序：</strong>8-bit 256-128 效率版已完成（推荐，见 9.5）→ 1D spiking CNN/SEW-ResNet（见 9.6）→ 100 MHz/片上 FFT。4-bit 大网络保留为容量实验。
       </div>
       <div class="callout warn">
-        <strong>板级参数说明：</strong>器件级参数已从 Vivado 确认（<code>xc7z020clg400-2</code>，53,200 LUT / 106,400 FF / 140 BRAM36 / 220 DSP）。当前综合/实现是 out-of-context，只验证了器件资源与内部时序；上板还需要领航者 7020 的原理图/XDC（50 MHz PL 时钟引脚、复位）。PS/DDR 等 PS 端资源不在本次范围。
+        <strong>板级参数说明：</strong>器件级参数已从 Vivado 确认（<code>xc7z020clg400-2</code>，53,200 LUT / 106,400 FF / 140 BRAM36 / 220 DSP）。当前综合/实现是 out-of-context，只验证了器件资源与内部时序；**达芬奇Pro 200T 已完成上板**，7020 上板还需要领航者原理图/XDC（50 MHz PL 时钟引脚、复位）。PS/DDR 等 PS 端资源不在本次范围。
       </div>
     </section>
 
     <section class="card" id="s9">
       <h2><span class="num">9</span>下一步与结论</h2>
-      <h3>9.1 PL 上板集成</h3>
+      <h3>9.1 上板集成</h3>
       <ul>
+        <li><strong>达芬奇Pro XC7A200T：</strong>2D 均衡版已通过 JTAG 下载，DONE=1、CRC_ERROR=0、WNS +0.182 ns、8/8 判决；bitstream、引脚、验收日志见 <code>deploy_davinci_pro/</code>。</li>
+        <li><strong>ZYNQ-7020（领航者）：</strong>仍是 OOC + xsim 8/8；<code>deploy/</code> 已备好 board_top、MMCM、8 例 ROM 与 build/program 脚本，填 <code>pins.xdc</code> 后可生成 bitstream。</li>
         <li>特征源：片上 512 点 FFT + log + median/MAD 归一化，或外部简单接口预装特征；PS/DDR 不在范围。</li>
-        <li>加 PL 时钟/复位/引脚约束，生成 bitstream，上板实测延迟/功耗。</li>
         <li>结果读出：简单 PL 寄存器 / UART / ILA（可选）。</li>
       </ul>
 
@@ -898,7 +899,7 @@
       <p class="small muted">文件：<code>rtl/conv2d_engine.v</code>、<code>rtl/rate_encoder2d.v</code>、<code>rtl/snn2d_top.v</code>、<code>sim/tb_snn2d_top.v</code>、<code>tcl/synth2d.tcl</code>、<code>tcl/impl2d.tcl</code>、<code>weights2d/</code>、<code>hw2d/</code>、<code>build/synth2d/</code>、<code>docs/sim2d_128.log</code>。复现：<code>python python/convert_snn2d.py</code> → 在 <code>build/sim2d</code> 跑 xvlog/xelab/xsim → 在 <code>build/synth2d</code> 跑 Vivado 100 MHz。</p>
 
       <div class="callout">
-        <strong>结论：</strong>本工作完成了从合成雷达回波数据、ANN 训练、整数 SNN 转换，到 1D/2D RTL、功能仿真、7020 综合/实现的全链路。8-bit 基线为 512-512-512-2（525,312 突触，96.75%，PD 95.00%，PFA 1.54%，AUC 0.9931，5.594 ms，BRAM 128/140）；8-bit 效率版为 512-256-128-2（164,096 突触，96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，1.772 ms，BRAM 36.5/140），是当前已上 RTL 的推荐版本；4-bit 容量版为 512-704-704-2（857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140），是容量实验。三版 1D RTL 均与 Python 8/8 用例逐计数一致；2D RTL 8/8 决策正确，跨 t 行缓冲 bit-exact 仍在收尾。此外试验了 MF + 1D CNN + 32-32-2 SNN 头：CNN 98.01%（9,682 参数），SNN 头 97.94%（2,112 突触，T=32，PD 97.40%，PFA 1.54%，AUC 0.9960）；纯 spiking CNN 的朴素 rate 转换 85.04%。<strong>最新的 9.9 用 STFT 32×32 + 2D 残差 spiking CNN（T=4，28,146 参数，6 层卷积全部 spiking）把纯 SNN 测试精度提到 99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。9.10 已把它落成 <strong>128-lane RTL</strong>：LUT 27,948/53,200（52.5%）、FF 15,393/106,400（14.5%）、BRAM 98/140（70%）、DSP 2，8/8 决策通过；100 MHz 实现 WNS +0.259 ns、功耗 0.661 W、单次 <strong>5.01 ms</strong>（64-lane 9.01 ms，1.80×）。</strong>这证明“SNN 做主力”在时频图上可行，也说明时频 RSN 比 1D MLP 更值得做 2D 卷积引擎。剩余工作是跨 t 行缓冲 bit-exact、事件驱动、PL 上板/真实数据验证，以及片上 STFT/FFT。
+        <strong>结论：</strong>本工作完成了从合成雷达回波数据、ANN 训练、整数 SNN 转换，到 1D/2D RTL、功能仿真、7020 综合/实现的全链路。8-bit 基线为 512-512-512-2（525,312 突触，96.75%，PD 95.00%，PFA 1.54%，AUC 0.9931，5.594 ms，BRAM 128/140）；8-bit 效率版为 512-256-128-2（164,096 突触，96.64%，PD 94.67%，PFA 1.44%，AUC 0.9943，1.772 ms，BRAM 36.5/140），是当前已上 RTL 的推荐版本；4-bit 容量版为 512-704-704-2（857,472 突触，96.50%，PFA 2.48%，4.755 ms，BRAM 118.5/140），是容量实验。三版 1D RTL 均与 Python 8/8 用例逐计数一致；2D RTL 8/8 决策正确，跨 t 行缓冲 bit-exact 仍在收尾。此外试验了 MF + 1D CNN + 32-32-2 SNN 头：CNN 98.01%（9,682 参数），SNN 头 97.94%（2,112 突触，T=32，PD 97.40%，PFA 1.54%，AUC 0.9960）；纯 spiking CNN 的朴素 rate 转换 85.04%。<strong>最新的 9.9 用 STFT 32×32 + 2D 残差 spiking CNN（T=4，28,146 参数，6 层卷积全部 spiking）把纯 SNN 测试精度提到 99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；PFA 1e-3 时 PD 99.47% / PFA 0.05%。9.10 已把它落成 <strong>128-lane RTL</strong>：LUT 27,948/53,200（52.5%）、FF 15,393/106,400（14.5%）、BRAM 98/140（70%）、DSP 2，8/8 决策通过；100 MHz 实现 WNS +0.259 ns、功耗 0.661 W、单次 <strong>5.01 ms</strong>（64-lane 9.01 ms，1.80×）。</strong>这证明“SNN 做主力”在时频图上可行，也说明时频 RSN 比 1D MLP 更值得做 2D 卷积引擎。剩余工作是跨 t 行缓冲 bit-exact、事件驱动、7020 上板/真实数据验证，以及片上 STFT/FFT。
       </div>
     </section>
 
@@ -1022,7 +1023,7 @@ vivado -mode batch -nolog -nojournal -source ../../tcl/impl2d.tcl</pre>
           <div class="tip"><b>3. 算法</b><br>ANN 512-512-512-2 → 整数 SNN；int8 权重、24-bit 膜电位、T=16；阈值 [316, 289, 3571]；SNN 精度 96.75%。</div>
           <div class="tip"><b>4. 硬件</b><br>8-bit 基线 512-512-512（128/140 BRAM，5.59 ms）；8-bit 效率版 512-256-128（36.5/140 BRAM，1.77 ms，96.64%）；4-bit 大网络是容量实验。</div>
           <div class="tip"><b>5. 验证</b><br>1D 三版 RTL 与 Python 整数模型逐计数一致（8/8，count0/count1/decision 全等）；2D RTL 8/8 决策正确，但逐计数/分数尚未全用例 bit-exact，跨 t 行缓冲是收尾项。</div>
-          <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 引擎 RTL 已完成 8/8 决策、100 MHz 128-lane 实现（WNS +0.259 ns、5.01 ms），跨 t 行缓冲尚未 bit-exact；下一步上板 + 真实数据 + 事件驱动。</div>
+          <div class="tip"><b>6. 局限</b><br>合成数据、幅度谱丢相位、1.8–5.6 ms 非 100 µs PRI 硬实时；2D 引擎 RTL 已完成 8/8 决策、100 MHz 128-lane 实现（WNS +0.259 ns、5.01 ms），跨 t 行缓冲尚未 bit-exact；下一步 7020 上板 + 真实数据 + 事件驱动。</div>
           <div class="tip"><b>7. 时频 RSN（最新）</b><br>STFT 32×32 + 2D 残差 spiking CNN，T=4，28,146 参数，99.72%，PD 99.67% / PFA 0.22%，AUC 0.9998；6 层卷积全部 spiking。性能版 128-lane：LUT 27,948、FF 15,393、BRAM 98、0.661 W、5.01 ms；均衡版（main）：LUT 29,048（54.6%）、FF 64,633（60.8%）、BRAM 98（70%）、0.992 W、5.82 ms，均 8/8 决策。</div>
         </div>
       </details>

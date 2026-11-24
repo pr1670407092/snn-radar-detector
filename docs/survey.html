@@ -363,7 +363,7 @@
     <h2><span class="num">06</span>结论</h2>
     <p class="lead">对“雷达回波有无目标 + 7020 + PL-only”这个任务，最值得讲的故事不是“我们把一个 MLP 塞进了 FPGA”，而是：<strong>时频图 + 2D 残差脉冲网络把纯 SNN 从 96.6% 推到 99.7%，并且真的做成了 100 MHz、8/8 决策、0.661 W 的 128-lane 2D 卷积引擎（5.01 ms/次）。</strong></p>
     <p>文献侧，GRSL 2025 RSN 给了“TFG + 残差 spiking + 膜电位 PFA”的路线；我们把它在合成数据上复现到 99.7%，并补上了“7020 上怎么放、怎么流水、资源/时序/功耗是多少”这一块。1D 8-bit 256-128 仍然保留为低延迟/bit-exact 的基线；4-bit 大网络和混合方案作为对照，不推荐作为最终版本。</p>
-    <p>下一步优先级：<strong>（1）</strong>跨 t 行缓冲 bit-exact；<strong>（2）</strong>event-driven 2D 卷积（目标 ~0.8 ms）；<strong>（3）</strong>真实 IPIX/实测数据；<strong>（4）</strong>PL 上板与片上 STFT。100 MHz 已收敛（WNS +0.259 ns），但余量仍然很薄，上板前建议再做一轮 retiming/guardband。</p>
+    <p>上板状态：2D 均衡版已在达芬奇Pro XC7A200T 上 JTAG 验证（DONE=1、CRC_ERROR=0、WNS +0.182 ns、8/8）；ZYNQ-7020 仍是 OOC + xsim，待 7020 实板。下一步优先级：<strong>（1）</strong>跨 t 行缓冲 bit-exact；<strong>（2）</strong>event-driven 2D 卷积（目标 ~0.8 ms）；<strong>（3）</strong>真实 IPIX/实测数据；<strong>（4）</strong>7020 上板与片上 STFT。7020 性能版 WNS +0.259 ns 余量较薄，上 7020 前建议再做一轮 retiming/guardband。</p>
   </section>
 
   <section class="card">
