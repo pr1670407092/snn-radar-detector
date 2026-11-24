@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>基于时频残差脉冲网络的雷达目标检测及其 ZYNQ-7020 加速器</title>
+<title>基于时频残差脉冲网络的雷达目标检测：ZYNQ-7020 原型与 XC7A200T 上板实现</title>
 <style>
   @page { size: A4; margin: 15mm 13mm 15mm 13mm; }
   * { box-sizing: border-box; }
@@ -54,14 +54,14 @@
 </head>
 <body>
 
-<div class="title">基于时频残差脉冲网络的雷达目标检测<br>及其 ZYNQ-7020 加速器</div>
+<div class="title">基于时频残差脉冲网络的雷达目标检测<br>——ZYNQ-7020 原型与 XC7A200T 上板实现</div>
 <div class="authors">purui</div>
 <div class="affil">单位：____________________　通信作者：____________________</div>
 
 <div class="abstract">
-<b>摘要：</b>针对低信噪比、非均匀海杂波条件下雷达回波“有/无目标”检测，本文提出一种时频残差脉冲网络（TFG-RSN）及其面向 XC7Z020 的可综合加速器。算法以 512 点复数回波的 32×32 STFT 时频图为输入，采用 σ-Δ 脉冲编码、6 层全脉冲 2D 卷积、SEW 残差连接与膜电位读出，时间步 T=4，参数量 28,146。在 8,000 个合成测试样本上，浮点模型达到 99.72% 准确率、99.67% 检测概率（PD）与 0.22% 虚警率（PFA），AUC 为 0.9998；int8 定点参考为 99.62%。硬件侧设计了一个 128 lane、1 tap/cycle 的通用 2D 卷积/LIF/SEW 引擎，六层共享同一套数据通路，在 100 MHz 下完成 8/8 测试向量判决。性能版实现为 LUT 27,948、FF 15,393、BRAM 98/140、0.661 W、5.01 ms/次；资源均衡版采用 192 字 FF 权重缓存与 96 字 LUTRAM 尾段，为 LUT 29,048、FF 64,633、BRAM 98、0.992 W、5.82 ms/次。本文进一步给出 7020 上 BRAM 与 slice 的物理约束：BRAM 70% 时可用 slice 仅约 8,204 个，LUT/FF 上限约 61.7%，因此“三项同时 80%/65%”在该器件上不可布线。结果说明“SNN 做主力”的时频检测网络可以在 7020 PL 内落地，但资源、精度与实时性需要联合设计。
+<b>摘要：</b>针对低信噪比、非均匀海杂波条件下雷达回波“有/无目标”检测，本文提出一种时频残差脉冲网络（TFG-RSN）及其面向 XC7Z020 原型、并在 XC7A200T 上完成上板验证的可综合加速器。算法以 512 点复数回波的 32×32 STFT 时频图为输入，采用 σ-Δ 脉冲编码、6 层全脉冲 2D 卷积、SEW 残差连接与膜电位读出，时间步 T=4，参数量 28,146。在 8,000 个合成测试样本上，浮点模型达到 99.72% 准确率、99.67% 检测概率（PD）与 0.22% 虚警率（PFA），AUC 为 0.9998；int8 定点参考为 99.62%。硬件侧设计了一个 128 lane、1 tap/cycle 的通用 2D 卷积/LIF/SEW 引擎，六层共享同一套数据通路，在 100 MHz 下完成 8/8 测试向量判决，并在正点原子达芬奇Pro XC7A200T 上完成 JTAG 上板（DONE=1、CRC_ERROR=0、8/8、WNS +0.182 ns）。性能版实现为 LUT 27,948、FF 15,393、BRAM 98/140、0.661 W、5.01 ms/次；资源均衡版采用 192 字 FF 权重缓存与 96 字 LUTRAM 尾段，为 LUT 29,048、FF 64,633、BRAM 98、0.992 W、5.82 ms/次。本文进一步给出 7020 上 BRAM 与 slice 的物理约束：BRAM 70% 时可用 slice 仅约 8,204 个，LUT/FF 上限约 61.7%，因此“三项同时 80%/65%”在该器件上不可布线。结果说明“SNN 做主力”的时频检测网络可以在 7020 PL 内落地，并已在 200T 上实际上板；资源、精度与实时性需要联合设计。
 </div>
-<div class="keywords"><b>关键词：</b>脉冲神经网络；雷达目标检测；时频图；残差学习；FPGA；ZYNQ-7020；硬件加速</div>
+<div class="keywords"><b>关键词：</b>脉冲神经网络；雷达目标检测；时频图；残差学习；FPGA；ZYNQ-7020；XC7A200T；上板验证</div>
 
 <div class="twocol">
 
@@ -70,8 +70,9 @@
 <p>脉冲神经网络（SNN）用 0/1 脉冲和膜电位代替连续激活，乘加可以退化为“条件加”，在神经形态芯片和 FPGA 上具有潜在能效优势。近几年，雷达领域开始把 SNN 用于海面小目标、HRRP 识别、微多普勒人体活动识别等任务。GRSL 2025 的 RSN 用 time-frequency graph（TFG）+ 残差脉冲网络 + 膜电位读出，在 IPIX 海杂波上实现 PFA=10<sup>-3</sup> 时 PD=0.8266，能耗约为 ResNet18 的 70%<sup class="cite">[1]</sup>。RadarConf 2024 把神经形态 ADC 与 SNN 结合用于 HRRP 识别，采样率降低 95% 以上<sup class="cite">[2]</sup>。IJCNN 2026 的 STT 用拓扑正则脉冲 Transformer 做微多普勒人体活动识别，报告 98.99% 准确率<sup class="cite">[3]</sup>。GRSL 2026 的 TF-Spkformer 进一步把轻量时频 SNN 用于海杂波小目标检测<sup class="cite">[4]</sup>。这些工作说明“时频图 + 脉冲骨干 + 膜电位虚警控制”是雷达检测的一条可行路线，但公开文献大多只给 GPU/神经形态芯片上的算法结果或相对能耗，缺少在 7020 级 FPGA 上可综合、可布线的 LUT/BRAM/时序/功耗完整数据。</p>
 <p>本文的工作是把上述路线做成一个可综合的 2D SNN 加速器，并回答三个工程问题：（1）在 7020 的 PL 资源内，时频 RSN 能做到多大、多快；（2）int8 定点化与 RTL 实现会损失多少精度；（3）BRAM、LUT、FF 同时提高时，器件是否真的放得下。主要贡献如下：</p>
 <p class="noindent">（1）提出 TFG-RSN：32×32 STFT 时频图、6 层全脉冲 2D 卷积、L3/L6 SEW 残差、T=4、膜电位全局最大 + int8 FC 32→2；浮点 99.72%、int8 99.62%，并给出 PFA 校准与难集评测。</p>
-<p class="noindent">（2）设计 128 lane 通用 2D 卷积/LIF/SEW 引擎，六层共享同一套 MAC/LIF 硬件；性能版 100 MHz、5.01 ms/次、0.661 W；资源均衡版 5.82 ms/次、0.992 W；两者均 8/8 决策。</p>
+<p class="noindent">（2）设计 128 lane 通用 2D 卷积/LIF/SEW 引擎，六层共享同一套 MAC/LIF 硬件；性能版 100 MHz、5.01 ms/次、0.661 W；资源均衡版 5.82 ms/次、0.992 W；两者均 8/8 决策，并在达芬奇Pro XC7A200T 上完成 JTAG 上板（DONE=1、CRC_ERROR=0、8/8）。</p>
 <p class="noindent">（3）给出 7020 上 BRAM 与 slice 的定量约束：BRAM 112.5/140 时只剩 7,436 个可用 slice，而 LUT/FF 80% 需要 10,759 个，因此三项同时 80% 不可布线；并给出可布线的均衡点与 16-bit 膜电位实验。</p>
+<p class="noindent">（4）把同一套 RTL 移植到 XC7A200T（达芬奇Pro），完成 bitstream、JTAG 下载、DONE/CRC 回读和 8/8 自检；上板占用 LUT 28,892/133,800（21.6%）、FF 64,443/267,600（24.1%）、BRAM 100/365（27.4%），WNS +0.182 ns。</p>
 
 <h2>II. 相关工作</h2>
 <h3>A. 雷达脉冲神经网络</h3>
@@ -135,11 +136,11 @@
 
 <h2>IV. 硬件加速器设计</h2>
 <h3>A. 总体结构</h3>
-<p>加速器只使用 PL：特征写端口把 1024 字节 TFG 写入片上，σ-Δ 编码器按 1 pixel/cycle 产生 T=4 的脉冲行字；顶层 FSM 调度 6 层 ×4 个时间步，每层把 runtime 配置（Cin/Cout、H/W、stride、SEW 源、权重/偏置/膜电位基址、阈值）送入共享的 2D 引擎；引擎把层输出脉冲写回 spike memory，把膜电位写回 v_mem；L6 结束后读出全局最大并做 int8 FC，输出 score0/score1 与 decision。整体接口只有 feat/start/busy/done/score/decision，便于上板或与前端对接。</p>
+<p>加速器只使用 PL：原型器件为 XC7Z020（领航者），实际部署板为达芬奇Pro XC7A200T；核心 RTL 不变，只改板级 wrapper/part/引脚/MMCM。特征写端口把 1024 字节 TFG 写入片上，σ-Δ 编码器按 1 pixel/cycle 产生 T=4 的脉冲行字；顶层 FSM 调度 6 层 ×4 个时间步，每层把 runtime 配置（Cin/Cout、H/W、stride、SEW 源、权重/偏置/膜电位基址、阈值）送入共享的 2D 引擎；引擎把层输出脉冲写回 spike memory，把膜电位写回 v_mem；L6 结束后读出全局最大并做 int8 FC，输出 score0/score1 与 decision。整体接口只有 feat/start/busy/done/score/decision，便于上板或与前端对接。</p>
 
 <figure class="wide">
 <img src="hardware_datapath_paper.png" alt="ZYNQ-7020 硬件数据通路">
-<figcaption>图 2　ZYNQ-7020 PL-only 硬件逻辑链路。当前 main 为资源均衡版：192 字 FF 权重缓存 + 96 字 LUTRAM 尾段；性能版直接用权重 BRAM。两版共享 128 lane 引擎、v_mem 与读出/FC。</figcaption>
+<figcaption>图 2　PL-only 硬件逻辑链路（ZYNQ-7020 原型 / XC7A200T 部署）。当前 main 为资源均衡版：192 字 FF 权重缓存 + 96 字 LUTRAM 尾段；性能版直接用权重 BRAM。两版共享 128 lane 引擎、v_mem 与读出/FC。</figcaption>
 </figure>
 
 <h3>B. 128 lane 通用 2D 引擎</h3>
@@ -188,17 +189,30 @@
 </table>
 <p>为说明资源上限，本文还做了一个 80% 综合实验：LUT 43,375（81.5%）、FF 85,778（80.6%）、BRAM 112.5（80.4%），综合 WNS +0.098 ns，8/8 仿真通过，但 place 拒绝（可用 7,436 slice，需要 10,759）。16-bit 膜电位版本在功能上与 24-bit 逐计数一致（实际最大膜电位约 5,115，16-bit 足够），资源为 27,809/62,341/69.5；虽然能进一步降 BRAM，但最低项反而更低，因此没有作为最终版。对 7020 级设计，这是一个重要提醒：**单项利用率高不等于可布线**。</p>
 
+      <p><strong>上板验证：</strong>同一套 2D 均衡版在正点原子达芬奇Pro（XC7A200T-2FBG484I）上完成 bitstream、JTAG 下载和配置回读：<code>DONE=1</code>、<code>CRC_ERROR=0</code>；100 MHz WNS +0.182 ns、WHS +0.058 ns；8 个测试向量 8/8 判决（<code>pass_count=8</code>，LED=1010）；8 例约 46–47 ms（约 5.8 ms/例）。同一 RTL 在 7020 上是 OOC 实现，在 200T 上是实际上板。</p>
+      <table class="full-table">
+      <caption>表 V　达芬奇Pro XC7A200T 上板结果</caption>
+      <thead><tr><th>项目</th><th>结果</th><th>项目</th><th>结果</th></tr></thead>
+      <tbody>
+      <tr><td class="l">器件</td><td>XC7A200T-2FBG484I</td><td class="l">JTAG IDCODE</td><td>0x13636093</td></tr>
+      <tr><td class="l">LUT</td><td>28,892/133,800（21.6%）</td><td class="l">FF</td><td>64,443/267,600（24.1%）</td></tr>
+      <tr><td class="l">BRAM</td><td>100/365（27.4%）</td><td class="l">DSP</td><td>2/740</td></tr>
+      <tr><td class="l">WNS / WHS</td><td>+0.182 / +0.058 ns</td><td class="l">DONE / CRC_ERROR</td><td>1 / 0</td></tr>
+      <tr><td class="l">自检</td><td>8/8 判决</td><td class="l">8 例耗时</td><td>约 46–47 ms（~5.8 ms/例）</td></tr>
+      </tbody>
+      </table>
+
 <h3>D. 与文献的关系</h3>
-<p>表 V 给出定性对比。GRSL 2025 RSN 在 IPIX 上给出 PFA 控制与相对能耗，但没有 7020 级 LUT/BRAM/时序；RadarConf 2024 解决采样前端；STT/TF-Spkformer 是更强的脉冲骨干但结构/规模不适合当前 7020；EMRFormer 任务不同。本文的定位不是刷新 IPIX 精度，而是补上“时频 RSN 在 7020 PL 上怎么放、多快、多少功耗、资源上限在哪”这一块。由于数据/任务不同，表 V 不做精度直接比较。</p>
+<p>表 VI 给出定性对比。GRSL 2025 RSN 在 IPIX 上给出 PFA 控制与相对能耗，但没有 7020 级 LUT/BRAM/时序；RadarConf 2024 解决采样前端；STT/TF-Spkformer 是更强的脉冲骨干但结构/规模不适合当前 7020；EMRFormer 任务不同。本文的定位不是刷新 IPIX 精度，而是补上“时频 RSN 在 7020 PL 上怎么放、多快、多少功耗、资源上限在哪”这一块。由于数据/任务不同，表 VI 不做精度直接比较。</p>
 <table class="full-table">
-<caption>表 V　与代表性工作的定位对比</caption>
+<caption>表 VI　与代表性工作的定位对比</caption>
 <thead><tr><th>工作</th><th>任务/数据</th><th>模型</th><th>硬件/指标</th><th>与本文关系</th></tr></thead>
 <tbody>
 <tr><td class="l">GRSL 2025 RSN [1]</td><td>IPIX 海杂波小目标</td><td>TFG + 残差 SNN + 膜电位 PFA</td><td>GPU/相对能耗；PD 0.8266 @ PFA 1e-3</td><td>算法原型；本文补 RTL</td></tr>
 <tr><td class="l">RadarConf 2024 [2]</td><td>HRRP 识别</td><td>神经形态 ADC + SNN</td><td>采样率降 &gt;95%</td><td>前端互补</td></tr>
 <tr><td class="l">STT [3] / TF-Spkformer [4]</td><td>HAR / 海杂波</td><td>脉冲 Transformer / 轻量时频 SNN</td><td>STT 98.99%；TF-Spkformer 无公开指标</td><td>骨干对照；不适合 7020</td></tr>
 <tr><td class="l">EMRFormer [5]</td><td>原始 IQ AMR</td><td>0.31/0.53M，T=1</td><td>RML OA 62.5–87.4%</td><td>任务不同</td></tr>
-<tr><td class="l"><b>本文</b></td><td>合成 LFM 回波有无目标</td><td>6 层 TFG-RSN，T=4，28k</td><td><b>7020：5.01/5.82 ms，0.661/0.992 W，8/8</b></td><td>算法 + 可综合 RTL + 资源上限</td></tr>
+<tr><td class="l"><b>本文</b></td><td>合成 LFM 回波有无目标</td><td>6 层 TFG-RSN，T=4，28k</td><td><b>7020：5.01/5.82 ms，0.661/0.992 W；200T 上板 8/8</b></td><td>算法 + RTL + 上板验证</td></tr>
 </tbody>
 </table>
 
@@ -206,7 +220,7 @@
 <p>（1）数据是合成的，虽然包含 K 杂波/尖峰/干扰/失配，仍不能替代 IPIX/实测；99.72% 不应与 IPIX 的 PD=0.8266 直接比较。（2）STFT 是非 spiking 预处理；本文的“SNN 主力”指 6 层卷积/残差/读出，片上 STFT 是下一步。（3）5.01/5.82 ms 不是 100 µs PRI 硬实时；事件驱动卷积（按平均脉冲率估算约 0.79 ms）尚未实现。（4）2D RTL 尚未全用例 bit-exact，跨 t 行缓冲是收尾项；1D 版本已 bit-exact。（5）100 MHz 性能版 WNS +0.259 ns 余量较薄，7020 上板前应加 guardband/再流水；同一 RTL 已在达芬奇Pro XC7A200T 上 JTAG 验证（DONE=1、CRC_ERROR=0、WNS +0.182 ns、8/8），但 200T 板级功耗未单独测量。（6）资源上限实验说明三项同时 80% 在 7020 上不可布线；均衡版三项 54.6/60.8/70 是 24-bit 膜电位下的实际可布线点。</p>
 
 <h2>VI. 结论</h2>
-<p>本文把“时频图 + 残差脉冲网络 + 膜电位读出”的雷达检测路线做成了可综合的 7020 加速器。算法上，6 层 TFG-RSN 在 28k 参数、T=4 下达到 99.72%/99.62%，并给出 PFA 校准与难集结果；硬件上，128-lane 通用 2D 引擎在 100 MHz 下实现 5.01 ms/次（性能版）与 5.82 ms/次（均衡版），8/8 决策，功耗 0.661/0.992 W。本文还定量说明：7020 的 BRAM 列与 slice 共享 floorplan，BRAM 70% 时 LUT/FF 上限约 61.7%，三项同时 80% 不可能；这为后续雷达 SNN 的规模选择提供了可复用的工程边界。下一步将做真实 IPIX/实测数据、事件驱动卷积、T=8、片上 STFT 与跨 t 位精确收尾。</p>
+<p>本文把“时频图 + 残差脉冲网络 + 膜电位读出”的雷达检测路线做成了可综合的 7020 原型，并在达芬奇Pro XC7A200T 上完成实际上板。算法上，6 层 TFG-RSN 在 28k 参数、T=4 下达到 99.72%/99.62%，并给出 PFA 校准与难集结果；硬件上，128-lane 通用 2D 引擎在 100 MHz 下实现 5.01 ms/次（性能版）与 5.82 ms/次（均衡版），8/8 决策，功耗 0.661/0.992 W；200T 上板 DONE=1、CRC_ERROR=0、WNS +0.182 ns、8/8。本文还定量说明：7020 的 BRAM 列与 slice 共享 floorplan，BRAM 70% 时 LUT/FF 上限约 61.7%，三项同时 80% 不可能；这为后续雷达 SNN 的规模选择提供了可复用的工程边界。下一步将做真实 IPIX/实测数据、事件驱动卷积、T=8、片上 STFT 与跨 t 位精确收尾。</p>
 
 <h2>参考文献</h2>
 <ol class="refs">
